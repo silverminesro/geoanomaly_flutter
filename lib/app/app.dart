@@ -10,7 +10,7 @@ class GeoAnomalyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
       title: 'GeoAnomaly',
-      theme: AppTheme.theme, // ✅ Používa centralizovaný theme
+      theme: AppTheme.theme,
       routerConfig: appRouter, // ✅ Používa centralizovaný router
       debugShowCheckedModeBanner: false,
     );

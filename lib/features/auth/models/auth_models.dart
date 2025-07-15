@@ -88,45 +88,6 @@ class User {
   }
 }
 
-// ✅ Login Request Model
-class LoginRequest {
-  final String username;
-  final String password;
-
-  LoginRequest({
-    required this.username,
-    required this.password,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'username': username,
-      'password': password,
-    };
-  }
-}
-
-// ✅ Register Request Model
-class RegisterRequest {
-  final String username;
-  final String email;
-  final String password;
-
-  RegisterRequest({
-    required this.username,
-    required this.email,
-    required this.password,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'username': username,
-      'email': email,
-      'password': password,
-    };
-  }
-}
-
 // ✅ Auth Response Model
 class AuthResponse {
   final User user;

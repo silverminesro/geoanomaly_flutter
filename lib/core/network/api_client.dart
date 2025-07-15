@@ -8,7 +8,7 @@ class ApiClient {
 
   static void initialize() {
     _dio = Dio(BaseOptions(
-      baseUrl: 'http://192.168.1.134:8080/api/v1', // ✅ Replace with your IP
+      baseUrl: 'http://192.168.1.134:8080/api/v1', // ✅ Zmeň na tvoju IP adresu
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       headers: {
