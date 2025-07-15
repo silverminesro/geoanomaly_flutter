@@ -3,24 +3,22 @@ import '../../../core/network/api_client.dart';
 import '../models/auth_models.dart';
 import '../services/auth_service.dart';
 
-// ✅ API Client Provider
-final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
-
 // ✅ Auth Service Provider
 final authServiceProvider = Provider<AuthService>((ref) {
-  final apiClient = ref.watch(apiClientProvider);
-  return AuthService(apiClient);
+  return AuthService();
 });
 
 // ✅ Auth State
 class AuthState {
   final User? user;
+  final String? token;
   final bool isLoading;
   final String? error;
   final bool isLoggedIn;
 
   const AuthState({
     this.user,
+    this.token,
     this.isLoading = false,
     this.error,
     this.isLoggedIn = false,
@@ -28,12 +26,14 @@ class AuthState {
 
   AuthState copyWith({
     User? user,
+    String? token,
     bool? isLoading,
     String? error,
     bool? isLoggedIn,
   }) {
     return AuthState(
       user: user ?? this.user,
+      token: token ?? this.token,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
       isLoggedIn: isLoggedIn ?? this.isLoggedIn,
@@ -66,55 +66,56 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // ✅ FIXED: Login - no manual token saving needed
+  // ✅ Login
   Future<void> login(String username, String password) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final request = LoginRequest(username: username, password: password);
-      final response = await _authService.login(request);
+      final result = await _authService.login(
+        username: username,
+        password: password,
+      );
 
-      // ✅ Token is already saved in AuthService.login(), just update state
       state = state.copyWith(
-        user: response.user,
+        user: result.user,
+        token: result.token,
         isLoggedIn: true,
         isLoading: false,
       );
     } catch (e) {
       state = state.copyWith(
-        error: e.toString().replaceAll('AuthException: ', ''),
+        error: e.toString().replaceAll('Exception: ', ''),
         isLoading: false,
       );
     }
   }
 
-  // ✅ FIXED: Register - no manual token saving needed
+  // ✅ Register
   Future<void> register(String username, String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final request = RegisterRequest(
+      final result = await _authService.register(
         username: username,
         email: email,
         password: password,
       );
-      final response = await _authService.register(request);
 
-      // ✅ Token is already saved in AuthService.register(), just update state
       state = state.copyWith(
-        user: response.user,
+        user: result.user,
+        token: result.token,
         isLoggedIn: true,
         isLoading: false,
       );
     } catch (e) {
       state = state.copyWith(
-        error: e.toString().replaceAll('AuthException: ', ''),
+        error: e.toString().replaceAll('Exception: ', ''),
         isLoading: false,
       );
     }
   }
 
-  // ✅ ENHANCED: Logout with state reset
+  // ✅ Logout
   Future<void> logout() async {
     state = state.copyWith(isLoading: true);
 
@@ -130,7 +131,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(error: null);
   }
 
-  // ✅ NEW: Refresh user profile
+  // ✅ Refresh user profile
   Future<void> refreshProfile() async {
     try {
       final user = await _authService.getProfile();
@@ -141,7 +142,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // ✅ NEW: Check auth status manually
+  // ✅ Check auth status manually
   Future<void> checkAuthStatus() async {
     await _checkAuthStatus();
   }
@@ -153,7 +154,7 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(authService);
 });
 
-// ✅ NEW: Convenience providers for easier access
+// ✅ Convenience providers for easier access
 final currentUserProvider = Provider<User?>((ref) {
   return ref.watch(authProvider).user;
 });

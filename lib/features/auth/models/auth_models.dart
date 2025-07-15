@@ -1,174 +1,146 @@
-import 'package:equatable/equatable.dart';
-
-// ✅ Login Request (bez JSON generator)
-class LoginRequest extends Equatable {
-  final String username;
-  final String password;
-
-  const LoginRequest({
-    required this.username,
-    required this.password,
-  });
-
-  Map<String, dynamic> toJson() => {
-        'username': username,
-        'password': password,
-      };
-
-  @override
-  List<Object?> get props => [username, password];
-}
-
-// ✅ Register Request
-class RegisterRequest extends Equatable {
-  final String username;
-  final String email;
-  final String password;
-
-  const RegisterRequest({
-    required this.username,
-    required this.email,
-    required this.password,
-  });
-
-  Map<String, dynamic> toJson() => {
-        'username': username,
-        'email': email,
-        'password': password,
-      };
-
-  @override
-  List<Object?> get props => [username, email, password];
-}
-
-// ✅ User Model (manuálny JSON parsing)
-class User extends Equatable {
+// ✅ User Model
+class User {
   final String id;
   final String username;
   final String email;
   final int tier;
-  final bool isActive;
-  final String createdAt;
-  final int xp;
   final int level;
+  final int xp;
   final int totalArtifacts;
   final int totalGear;
   final int zonesDiscovered;
+  final bool isActive;
+  final bool isBanned;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
-  const User({
+  User({
     required this.id,
     required this.username,
     required this.email,
     required this.tier,
+    required this.level,
+    required this.xp,
+    required this.totalArtifacts,
+    required this.totalGear,
+    required this.zonesDiscovered,
     required this.isActive,
+    required this.isBanned,
     required this.createdAt,
-    this.xp = 0,
-    this.level = 1,
-    this.totalArtifacts = 0,
-    this.totalGear = 0,
-    this.zonesDiscovered = 0,
+    required this.updatedAt,
   });
 
-  factory User.fromJson(Map<String, dynamic> json) => User(
-        id: json['id'] as String,
-        username: json['username'] as String,
-        email: json['email'] as String,
-        tier: json['tier'] as int,
-        isActive: json['is_active'] as bool,
-        createdAt: json['created_at'] as String,
-        xp: json['xp'] as int? ?? 0,
-        level: json['level'] as int? ?? 1,
-        totalArtifacts: json['total_artifacts'] as int? ?? 0,
-        totalGear: json['total_gear'] as int? ?? 0,
-        zonesDiscovered: json['zones_discovered'] as int? ?? 0,
-      );
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] ?? '',
+      username: json['username'] ?? '',
+      email: json['email'] ?? '',
+      tier: json['tier'] ?? 0,
+      level: json['level'] ?? 1,
+      xp: json['xp'] ?? 0,
+      totalArtifacts: json['total_artifacts'] ?? 0,
+      totalGear: json['total_gear'] ?? 0,
+      zonesDiscovered: json['zones_discovered'] ?? 0,
+      isActive: json['is_active'] ?? true,
+      isBanned: json['is_banned'] ?? false,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : DateTime.now(),
+    );
+  }
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'username': username,
-        'email': email,
-        'tier': tier,
-        'is_active': isActive,
-        'created_at': createdAt,
-        'xp': xp,
-        'level': level,
-        'total_artifacts': totalArtifacts,
-        'total_gear': totalGear,
-        'zones_discovered': zonesDiscovered,
-      };
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'username': username,
+      'email': email,
+      'tier': tier,
+      'level': level,
+      'xp': xp,
+      'total_artifacts': totalArtifacts,
+      'total_gear': totalGear,
+      'zones_discovered': zonesDiscovered,
+      'is_active': isActive,
+      'is_banned': isBanned,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
 
-  @override
-  List<Object?> get props => [
-        id,
-        username,
-        email,
-        tier,
-        isActive,
-        createdAt,
-        xp,
-        level,
-        totalArtifacts,
-        totalGear,
-        zonesDiscovered
-      ];
+  String get tierName {
+    switch (tier) {
+      case 0:
+        return 'Free';
+      case 1:
+        return 'Basic';
+      case 2:
+        return 'Standard';
+      case 3:
+        return 'Premium';
+      case 4:
+        return 'Elite';
+      default:
+        return 'Unknown';
+    }
+  }
 }
 
-// ✅ Auth Response
-class AuthResponse extends Equatable {
-  final String token;
+// ✅ Login Request Model
+class LoginRequest {
+  final String username;
+  final String password;
+
+  LoginRequest({
+    required this.username,
+    required this.password,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'username': username,
+      'password': password,
+    };
+  }
+}
+
+// ✅ Register Request Model
+class RegisterRequest {
+  final String username;
+  final String email;
+  final String password;
+
+  RegisterRequest({
+    required this.username,
+    required this.email,
+    required this.password,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'username': username,
+      'email': email,
+      'password': password,
+    };
+  }
+}
+
+// ✅ Auth Response Model
+class AuthResponse {
   final User user;
-  final String? message;
-  final String? timestamp;
+  final String token;
 
-  const AuthResponse({
-    required this.token,
+  AuthResponse({
     required this.user,
-    this.message,
-    this.timestamp,
+    required this.token,
   });
 
-  factory AuthResponse.fromJson(Map<String, dynamic> json) => AuthResponse(
-        token: json['token'] as String,
-        user: User.fromJson(json['user'] as Map<String, dynamic>),
-        message: json['message'] as String?,
-        timestamp: json['timestamp'] as String?,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'token': token,
-        'user': user.toJson(),
-        if (message != null) 'message': message,
-        if (timestamp != null) 'timestamp': timestamp,
-      };
-
-  @override
-  List<Object?> get props => [token, user, message, timestamp];
-}
-
-// ✅ API Error Response
-class ApiError extends Equatable {
-  final String error;
-  final String? message;
-  final String? details;
-
-  const ApiError({
-    required this.error,
-    this.message,
-    this.details,
-  });
-
-  factory ApiError.fromJson(Map<String, dynamic> json) => ApiError(
-        error: json['error'] as String,
-        message: json['message'] as String?,
-        details: json['details'] as String?,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'error': error,
-        if (message != null) 'message': message,
-        if (details != null) 'details': details,
-      };
-
-  @override
-  List<Object?> get props => [error, message, details];
+  factory AuthResponse.fromJson(Map<String, dynamic> json) {
+    return AuthResponse(
+      user: User.fromJson(json['user']),
+      token: json['token'],
+    );
+  }
 }

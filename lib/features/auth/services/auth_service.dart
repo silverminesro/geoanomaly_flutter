@@ -3,197 +3,145 @@ import '../../../core/network/api_client.dart';
 import '../models/auth_models.dart';
 
 class AuthService {
-  final ApiClient _apiClient;
+  final Dio _dio = ApiClient.dio;
 
-  AuthService(this._apiClient);
-
-  // ✅ Getter for ApiClient access
-  ApiClient get apiClient => _apiClient;
-
-  // ✅ Login (POST /auth/login) - FIXED for Go backend
-  Future<AuthResponse> login(LoginRequest request) async {
+  // ✅ Login - simplified for direct API communication
+  Future<AuthResponse> login({
+    required String username,
+    required String password,
+  }) async {
     try {
-      final response =
-          await _apiClient.post('/auth/login', data: request.toJson());
+      final response = await _dio.post(
+        '/auth/login',
+        data: {
+          'username': username,
+          'password': password,
+        },
+      );
 
-      // ✅ FIXED: Handle Go backend response format
-      Map<String, dynamic> responseData;
-      if (response.data is Map<String, dynamic>) {
-        responseData = response.data as Map<String, dynamic>;
-      } else {
-        throw AuthException('Invalid response format');
-      }
+      print('✅ Login response: ${response.data}');
 
-      // ✅ Go backend returns: {"message": "Login successful", "token": "...", "user": {...}}
-      if (responseData.containsKey('token') &&
-          responseData.containsKey('user')) {
-        final authResponse = AuthResponse(
-          token: responseData['token'] as String,
-          user: User.fromJson(responseData['user'] as Map<String, dynamic>),
-        );
+      final user = User.fromJson(response.data['user']);
+      final token = response.data['token'];
 
-        // ✅ Save token immediately after successful login
-        await _apiClient.saveToken(authResponse.token);
-        return authResponse;
-      } else {
-        throw AuthException('Invalid response format from server');
-      }
+      // Save token to API client
+      ApiClient.setAuthToken(token);
+
+      return AuthResponse(user: user, token: token);
     } on DioException catch (e) {
-      throw AuthException(_handleDioError(e, 'Login failed'));
+      print('❌ Login error: ${e.response?.data}');
+      throw Exception(_handleDioError(e, 'Login failed'));
     } catch (e) {
-      if (e is AuthException) rethrow;
-      throw AuthException('Network error: ${e.toString()}');
+      print('❌ Unexpected login error: $e');
+      throw Exception('Unexpected error occurred during login');
     }
   }
 
-  // ✅ Register (POST /auth/register) - FIXED for Go backend
-  Future<AuthResponse> register(RegisterRequest request) async {
+  // ✅ Register - simplified for direct API communication
+  Future<AuthResponse> register({
+    required String username,
+    required String email,
+    required String password,
+  }) async {
     try {
-      final response =
-          await _apiClient.post('/auth/register', data: request.toJson());
+      final response = await _dio.post(
+        '/auth/register',
+        data: {
+          'username': username,
+          'email': email,
+          'password': password,
+        },
+      );
 
-      // ✅ FIXED: Handle Go backend response format
-      Map<String, dynamic> responseData;
-      if (response.data is Map<String, dynamic>) {
-        responseData = response.data as Map<String, dynamic>;
-      } else {
-        throw AuthException('Invalid response format');
-      }
+      print('✅ Register response: ${response.data}');
 
-      // ✅ Go backend returns: {"message": "User registered successfully", "token": "...", "user": {...}}
-      if (responseData.containsKey('token') &&
-          responseData.containsKey('user')) {
-        final authResponse = AuthResponse(
-          token: responseData['token'] as String,
-          user: User.fromJson(responseData['user'] as Map<String, dynamic>),
-        );
+      final user = User.fromJson(response.data['user']);
+      final token = response.data['token'];
 
-        // ✅ Save token immediately after successful registration
-        await _apiClient.saveToken(authResponse.token);
-        return authResponse;
-      } else {
-        throw AuthException('Invalid response format from server');
-      }
+      // Save token to API client
+      ApiClient.setAuthToken(token);
+
+      return AuthResponse(user: user, token: token);
     } on DioException catch (e) {
-      throw AuthException(_handleDioError(e, 'Registration failed'));
+      print('❌ Register error: ${e.response?.data}');
+      throw Exception(_handleDioError(e, 'Registration failed'));
     } catch (e) {
-      if (e is AuthException) rethrow;
-      throw AuthException('Network error: ${e.toString()}');
+      print('❌ Unexpected register error: $e');
+      throw Exception('Unexpected error occurred during registration');
     }
   }
 
-  // ✅ Get Profile (GET /user/profile) - FIXED for Go backend
+  // ✅ Get Profile
   Future<User> getProfile() async {
     try {
-      final response = await _apiClient.get('/user/profile');
+      final response = await _dio.get('/user/profile');
 
-      // ✅ FIXED: Handle Go backend response format
-      Map<String, dynamic> responseData;
+      print('✅ Profile response: ${response.data}');
+
+      // Handle both direct user object and wrapped response
       if (response.data is Map<String, dynamic>) {
-        responseData = response.data as Map<String, dynamic>;
-      } else {
-        throw AuthException('Invalid response format');
+        final data = response.data as Map<String, dynamic>;
+        if (data.containsKey('user')) {
+          return User.fromJson(data['user']);
+        } else {
+          return User.fromJson(data);
+        }
       }
 
-      // ✅ Go backend might return: {"user": {...}} or directly {...}
-      if (responseData.containsKey('user')) {
-        return User.fromJson(responseData['user'] as Map<String, dynamic>);
-      } else {
-        // Direct user object
-        return User.fromJson(responseData);
-      }
+      throw Exception('Invalid response format');
     } on DioException catch (e) {
+      print('❌ Profile error: ${e.response?.data}');
+
       if (e.response?.statusCode == 401) {
-        await _apiClient.clearToken();
-        throw AuthException('Session expired');
+        ApiClient.clearAuthToken();
+        throw Exception('Session expired');
       }
-      throw AuthException(_handleDioError(e, 'Failed to get profile'));
+
+      throw Exception(_handleDioError(e, 'Failed to get profile'));
     } catch (e) {
-      if (e is AuthException) rethrow;
-      throw AuthException('Network error: ${e.toString()}');
+      print('❌ Unexpected profile error: $e');
+      throw Exception('Unexpected error occurred while getting profile');
     }
   }
 
-  // ✅ Refresh Token (POST /auth/refresh) - FIXED for Go backend
-  Future<AuthResponse> refreshToken() async {
-    try {
-      final response = await _apiClient.post('/auth/refresh');
-
-      // ✅ FIXED: Handle Go backend response format
-      Map<String, dynamic> responseData;
-      if (response.data is Map<String, dynamic>) {
-        responseData = response.data as Map<String, dynamic>;
-      } else {
-        throw AuthException('Invalid response format');
-      }
-
-      // ✅ Go backend returns: {"message": "Token refreshed successfully", "token": "...", "user_tier": 1}
-      if (responseData.containsKey('token')) {
-        final authResponse = AuthResponse(
-          token: responseData['token'] as String,
-          user: User.fromJson({}), // We'll get user from separate profile call
-        );
-
-        // ✅ Save new token
-        await _apiClient.saveToken(authResponse.token);
-        return authResponse;
-      } else {
-        throw AuthException('Invalid response format from server');
-      }
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        await _apiClient.clearToken();
-        throw AuthException('Session expired');
-      }
-      throw AuthException(_handleDioError(e, 'Token refresh failed'));
-    } catch (e) {
-      if (e is AuthException) rethrow;
-      throw AuthException('Network error: ${e.toString()}');
-    }
-  }
-
-  // ✅ Logout (POST /auth/logout) - FIXED for Go backend
+  // ✅ Logout
   Future<void> logout() async {
     try {
-      // ✅ Try to notify backend about logout
-      await _apiClient.post('/auth/logout');
+      await _dio.post('/auth/logout');
     } catch (e) {
-      // ✅ Even if backend call fails, clear local token
-      print('Logout API call failed: $e');
+      print('❌ Logout error: $e');
+      // Continue with logout even if server call fails
     } finally {
-      // ✅ Always clear token locally
-      await _apiClient.clearToken();
+      // Clear token from API client
+      ApiClient.clearAuthToken();
     }
   }
 
-  // ✅ Check if user is logged in
-  Future<bool> isLoggedIn() async {
-    final token = await _apiClient.getToken();
-    return token != null && token.isNotEmpty;
-  }
-
-  // ✅ Validate token by checking profile
+  // ✅ Validate token
   Future<bool> validateToken() async {
     try {
-      if (!await isLoggedIn()) return false;
+      if (ApiClient.authToken == null) return false;
 
       // Try to get profile to validate token
       await getProfile();
       return true;
     } catch (e) {
       // Token is invalid, clear it
-      await _apiClient.clearToken();
+      ApiClient.clearAuthToken();
       return false;
     }
   }
 
-  // ✅ ENHANCED: Better error handling for Go backend
+  // ✅ Handle Dio errors
   String _handleDioError(DioException e, String defaultMessage) {
-    // ✅ Handle specific HTTP status codes
     switch (e.response?.statusCode) {
       case 401:
         return 'Invalid credentials or session expired';
       case 409:
+        final errorData = e.response?.data;
+        if (errorData is Map<String, dynamic>) {
+          return errorData['error'] ?? 'Username or email already exists';
+        }
         return 'Username or email already exists';
       case 422:
         return 'Invalid input data';
@@ -207,12 +155,11 @@ class AuthService {
         break;
     }
 
-    // ✅ Try to extract error message from Go backend response
+    // Try to extract error message from response
     if (e.response?.data != null) {
       try {
         final errorData = e.response?.data;
         if (errorData is Map<String, dynamic>) {
-          // Go backend returns: {"error": "message"} or {"message": "message"}
           return errorData['error'] ?? errorData['message'] ?? defaultMessage;
         } else if (errorData is String) {
           return errorData;
@@ -222,7 +169,7 @@ class AuthService {
       }
     }
 
-    // ✅ Handle network errors
+    // Handle network errors
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
         return 'Connection timeout - check your internet connection';
@@ -245,36 +192,22 @@ class AuthService {
         return defaultMessage;
     }
   }
-
-  // ✅ ADDED: Debug method to test connection
-  Future<Map<String, dynamic>> testConnection() async {
-    try {
-      // Test health endpoint
-      final healthResponse = await _apiClient.get('/../../health');
-
-      // Test API endpoint
-      final apiResponse = await _apiClient.get('/test');
-
-      return {
-        'health': healthResponse.data,
-        'api': apiResponse.data,
-        'status': 'connected',
-      };
-    } catch (e) {
-      return {
-        'error': e.toString(),
-        'status': 'failed',
-      };
-    }
-  }
 }
 
-// ✅ Custom Auth Exception
-class AuthException implements Exception {
-  final String message;
+// ✅ Auth Response Model
+class AuthResponse {
+  final User user;
+  final String token;
 
-  AuthException(this.message);
+  AuthResponse({
+    required this.user,
+    required this.token,
+  });
 
-  @override
-  String toString() => 'AuthException: $message';
+  factory AuthResponse.fromJson(Map<String, dynamic> json) {
+    return AuthResponse(
+      user: User.fromJson(json['user']),
+      token: json['token'],
+    );
+  }
 }
