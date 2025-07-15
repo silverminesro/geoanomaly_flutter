@@ -85,9 +85,6 @@ class AppTheme {
               TextStyle(color: textSecondaryColor, fontWeight: FontWeight.w500),
         ),
       );
-
-  // ✅ Backward compatibility - ak niekde používaš darkTheme
-  static ThemeData get darkTheme => theme;
 }
 
 // ✅ Game-specific text styles

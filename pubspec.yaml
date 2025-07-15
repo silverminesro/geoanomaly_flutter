@@ -25,12 +25,13 @@ dependencies:
   # ✅ Navigation
   go_router: ^14.2.0
 
-  # ✅ Maps & Location
-  google_maps_flutter: ^2.6.1
+  # ✅ Maps & Location (OPRAVENÉ verzie)
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.1
   geolocator: ^12.0.0
   permission_handler: ^11.3.1
 
-  # ✅ HTTP & API (Simplified - only Dio)
+  # ✅ HTTP & API
   dio: ^5.4.3+1
   pretty_dio_logger: ^1.3.1
 
@@ -48,7 +49,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
 
-  # ✅ Code Generation (Simplified - only Riverpod)
+  # ✅ Code Generation
   build_runner: ^2.4.9
   riverpod_generator: ^2.4.0
   riverpod_lint: ^2.3.10

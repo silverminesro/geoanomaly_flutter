@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../services/location_service.dart';
@@ -18,10 +19,10 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  GoogleMapController? _mapController;
+  final MapController _mapController = MapController();
   LocationModel? _currentLocation;
-  Set<Marker> _markers = {};
-  List<Zone> _zones = [];
+  List<Marker> _markers = [];
+  List<ZoneWithDetails> _zones = []; // ✅ FIX: ZoneWithDetails namiesto Zone
   ScanResultModel? _lastScanResult;
   bool _isLoading = false;
   bool _isScanning = false;
@@ -47,16 +48,10 @@ class _MapScreenState extends State<MapScreen> {
       });
 
       // Move camera to current location
-      if (_mapController != null) {
-        await _mapController!.animateCamera(
-          CameraUpdate.newLatLng(
-            LatLng(location.latitude, location.longitude),
-          ),
-        );
-      }
-
-      // Auto-scan area on first load
-      await _scanArea();
+      _mapController.move(
+        LatLng(location.latitude, location.longitude),
+        15.0,
+      );
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -88,7 +83,7 @@ class _MapScreenState extends State<MapScreen> {
 
       setState(() {
         _lastScanResult = scanResult;
-        _zones = scanResult.zones;
+        _zones = scanResult.zones; // ✅ FIX: Použiť ZoneWithDetails
         _markers = _createZoneMarkers(scanResult.zones);
         _isScanning = false;
       });
@@ -103,58 +98,91 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Set<Marker> _createZoneMarkers(List<Zone> zones) {
-    return zones.map((zone) {
+  List<Marker> _createZoneMarkers(List<ZoneWithDetails> zones) {
+    // ✅ FIX: ZoneWithDetails parameter
+    return zones.map((zoneWithDetails) {
+      final zone = zoneWithDetails.zone; // ✅ FIX: Extrahuj zone object
       return Marker(
-        markerId: MarkerId(zone.id),
-        position: LatLng(zone.location.latitude, zone.location.longitude),
-        icon: BitmapDescriptor.defaultMarkerWithHue(
-          _getMarkerColor(zone.tierRequired),
+        point: LatLng(zone.location.latitude, zone.location.longitude),
+        width: 50,
+        height: 50,
+        child: GestureDetector(
+          onTap: () =>
+              _showZoneDetails(zoneWithDetails), // ✅ FIX: Pošli ZoneWithDetails
+          child: Container(
+            decoration: BoxDecoration(
+              color: _getMarkerColor(zone.tierRequired),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    zone.biomeEmoji,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  Text(
+                    'T${zone.tierRequired}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        infoWindow: InfoWindow(
-          title: zone.name,
-          snippet:
-              '${zone.biomeEmoji} ${zone.dangerLevelEmoji} Tier ${zone.tierRequired}',
-        ),
-        onTap: () => _showZoneDetails(zone),
       );
-    }).toSet();
+    }).toList();
   }
 
-  double _getMarkerColor(int tier) {
+  Color _getMarkerColor(int tier) {
     switch (tier) {
       case 0:
-        return BitmapDescriptor.hueGreen; // Free - Green
+        return Colors.green;
       case 1:
-        return BitmapDescriptor.hueBlue; // Basic - Blue
+        return Colors.blue;
       case 2:
-        return BitmapDescriptor.hueYellow; // Standard - Yellow
+        return Colors.yellow;
       case 3:
-        return BitmapDescriptor.hueOrange; // Premium - Orange
+        return Colors.orange;
       case 4:
-        return BitmapDescriptor.hueRed; // Elite - Red
+        return Colors.red;
       default:
-        return BitmapDescriptor.hueBlue;
+        return Colors.blue;
     }
   }
 
-  void _showZoneDetails(Zone zone) {
+  void _showZoneDetails(ZoneWithDetails zoneWithDetails) {
+    // ✅ FIX: ZoneWithDetails parameter
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => ZoneInfoCard(
-        zone: zone,
-        onEnterZone: () => _enterZone(zone),
-        onNavigateToZone: () => _navigateToZone(zone),
+        zone: zoneWithDetails.zone, // ✅ FIX: Extrahuj zone object
+        zoneDetails:
+            zoneWithDetails, // ✅ FIX: Pošli aj ZoneWithDetails pre extra info
+        onEnterZone: () => _enterZone(zoneWithDetails.zone),
+        onNavigateToZone: () => _navigateToZone(zoneWithDetails.zone),
       ),
     );
   }
 
   Future<void> _enterZone(Zone zone) async {
     try {
-      Navigator.pop(context); // Close bottom sheet
-
+      Navigator.pop(context);
       setState(() {
         _isLoading = true;
       });
@@ -165,10 +193,10 @@ class _MapScreenState extends State<MapScreen> {
         _isLoading = false;
       });
 
-      _showSuccessSnackBar('Successfully entered ${zone.name}!');
-
-      // Navigate to zone detail screen
-      context.go('/zone/${zone.id}');
+      if (mounted) {
+        _showSuccessSnackBar('Successfully entered ${zone.name}!');
+        context.go('/zone/${zone.id}');
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -178,7 +206,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _navigateToZone(Zone zone) {
-    Navigator.pop(context); // Close bottom sheet
+    Navigator.pop(context);
     context.go('/zone/${zone.id}');
   }
 
@@ -187,7 +215,7 @@ class _MapScreenState extends State<MapScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
-        duration: Duration(seconds: 3),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -197,7 +225,7 @@ class _MapScreenState extends State<MapScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.green,
-        duration: Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -217,45 +245,86 @@ class _MapScreenState extends State<MapScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(Icons.person, color: Colors.white),
+            icon: const Icon(Icons.person, color: Colors.white),
             onPressed: () => context.go('/profile'),
           ),
           IconButton(
-            icon: Icon(Icons.inventory_2, color: Colors.white),
+            icon: const Icon(Icons.inventory_2, color: Colors.white),
             onPressed: () => context.go('/inventory'),
           ),
         ],
       ),
       body: Stack(
         children: [
-          // Google Maps
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: _currentLocation != null
+          // 🗺️ Flutter Map
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _currentLocation != null
                   ? LatLng(
                       _currentLocation!.latitude, _currentLocation!.longitude)
-                  : LatLng(48.1486, 17.1077), // Fallback to Bratislava
-              zoom: 15,
+                  : const LatLng(48.1486, 17.1077),
+              initialZoom: 15.0,
+              minZoom: 3.0,
+              maxZoom: 18.0,
+              onTap: (tapPosition, point) {
+                // Hide any open bottom sheets
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
             ),
-            onMapCreated: (GoogleMapController controller) {
-              _mapController = controller;
-            },
-            markers: _markers,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false, // We'll use custom button
-            compassEnabled: true,
-            zoomControlsEnabled: false,
-            mapType: MapType.normal,
-            onTap: (LatLng latLng) {
-              // Hide any open bottom sheets
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
+            children: [
+              // 🌍 OpenStreetMap tiles
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.geoanomaly.app',
+                maxNativeZoom: 18,
+              ),
+
+              // 📍 Zone markers
+              MarkerLayer(
+                markers: _markers,
+              ),
+
+              // 📍 Current location marker
+              if (_currentLocation != null)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: LatLng(
+                        _currentLocation!.latitude,
+                        _currentLocation!.longitude,
+                      ),
+                      width: 20,
+                      height: 20,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
           ),
 
           // Loading overlay
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: Center(
                 child: CircularProgressIndicator(
                   color: AppTheme.primaryColor,
@@ -281,6 +350,7 @@ class _MapScreenState extends State<MapScreen> {
             child: FloatingActionButton(
               mini: true,
               backgroundColor: Colors.white,
+              heroTag: "location_button",
               onPressed: () async {
                 try {
                   final location = await LocationService.getCurrentLocation();
@@ -288,10 +358,9 @@ class _MapScreenState extends State<MapScreen> {
                     _currentLocation = location;
                   });
 
-                  await _mapController?.animateCamera(
-                    CameraUpdate.newLatLng(
-                      LatLng(location.latitude, location.longitude),
-                    ),
+                  _mapController.move(
+                    LatLng(location.latitude, location.longitude),
+                    15.0,
                   );
                 } catch (e) {
                   _showErrorSnackBar('Error getting location: $e');
@@ -310,14 +379,15 @@ class _MapScreenState extends State<MapScreen> {
               top: 20,
               left: 20,
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
+                  color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '${_zones.length} zones found',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -332,7 +402,7 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
-    _mapController?.dispose();
+    _mapController.dispose();
     super.dispose();
   }
 }

@@ -52,16 +52,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // ✅ Check if user is already logged in
   Future<void> _checkAuthStatus() async {
     try {
-      final isValid = await _authService.validateToken();
-      if (isValid) {
+      final isLoggedIn = await _authService.isLoggedIn();
+      if (isLoggedIn) {
         final user = await _authService.getProfile();
         state = state.copyWith(
           user: user,
           isLoggedIn: true,
         );
+        print('✅ User is logged in: ${user.username}');
+      } else {
+        print('⚠️ User is not logged in');
       }
     } catch (e) {
-      // Token is invalid, clear it
+      print('❌ Auth check failed: $e');
       await _authService.logout();
     }
   }
@@ -82,11 +85,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoggedIn: true,
         isLoading: false,
       );
+
+      print('✅ Login successful: ${result.user.username}');
     } catch (e) {
       state = state.copyWith(
         error: e.toString().replaceAll('Exception: ', ''),
         isLoading: false,
       );
+      print('❌ Login failed: $e');
     }
   }
 
@@ -107,11 +113,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoggedIn: true,
         isLoading: false,
       );
+
+      print('✅ Registration successful: ${result.user.username}');
     } catch (e) {
       state = state.copyWith(
         error: e.toString().replaceAll('Exception: ', ''),
         isLoading: false,
       );
+      print('❌ Registration failed: $e');
     }
   }
 
@@ -121,6 +130,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     try {
       await _authService.logout();
+      print('✅ Logout successful');
     } finally {
       state = const AuthState();
     }
@@ -137,7 +147,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = await _authService.getProfile();
       state = state.copyWith(user: user);
     } catch (e) {
-      // If profile refresh fails, user might be logged out
+      print('❌ Profile refresh failed: $e');
       await logout();
     }
   }
