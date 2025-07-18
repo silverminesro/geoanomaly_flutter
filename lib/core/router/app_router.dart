@@ -4,7 +4,11 @@ import '../../features/auth/screens/splash_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/map/screens/map_screen.dart';
-import '../theme/app_theme.dart'; // ✅ Pridaj import
+import '../../features/map/screens/zone_detail_screen.dart';
+import '../../features/inventory/screens/inventory_screen.dart';
+import '../../features/inventory/screens/inventory_detail_screen.dart';
+import '../../features/inventory/models/inventory_item_model.dart';
+import '../theme/app_theme.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/splash',
@@ -33,53 +37,104 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const MapScreen(),
     ),
 
-    // ✅ Zone detail route (zatiaľ placeholder)
+    // ✅ Zone detail route
     GoRoute(
       path: '/zone/:id',
       name: 'zone_detail',
       builder: (context, state) {
         final zoneId = state.pathParameters['id']!;
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              'Zone Details',
-              style: GameTextStyles.clockTime.copyWith(
-                fontSize: 20,
-                color: Colors.white,
-              ),
-            ),
-            backgroundColor: AppTheme.primaryColor,
-          ),
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Zone ID: $zoneId',
-                  style: GameTextStyles.clockTime,
-                ),
-                SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () => context.go('/map'),
-                  child: Text('Back to Map'),
-                ),
-              ],
-            ),
-          ),
-        );
+        return ZoneDetailScreen(zoneId: zoneId);
       },
     ),
 
-    // ✅ TODO: Add these routes later
-    // GoRoute(
-    //   path: '/profile',
-    //   name: 'profile',
-    //   builder: (context, state) => const ProfileScreen(),
-    // ),
-    // GoRoute(
-    //   path: '/inventory',
-    //   name: 'inventory',
-    //   builder: (context, state) => const InventoryScreen(),
-    // ),
+    // ✅ Inventory routes
+    GoRoute(
+      path: '/inventory',
+      name: 'inventory',
+      builder: (context, state) => const InventoryScreen(),
+    ),
+    GoRoute(
+      path: '/inventory/detail',
+      name: 'inventory_detail',
+      builder: (context, state) {
+        final item = state.extra as InventoryItem;
+        return InventoryDetailScreen(item: item);
+      },
+    ),
+
+    // ✅ Profile routes (placeholder)
+    GoRoute(
+      path: '/profile',
+      name: 'profile',
+      builder: (context, state) => Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Profile',
+            style: GameTextStyles.clockTime.copyWith(
+              fontSize: 20,
+              color: Colors.white,
+            ),
+          ),
+          backgroundColor: AppTheme.primaryColor,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Profile Screen',
+                style: GameTextStyles.clockTime,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => context.go('/map'),
+                child: const Text('Back to Map'),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () => context.go('/inventory'),
+                child: const Text('View Inventory'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+
+    // ✅ Scanner routes (placeholder)
+    GoRoute(
+      path: '/scanner',
+      name: 'scanner',
+      builder: (context, state) => Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Zone Scanner',
+            style: GameTextStyles.clockTime.copyWith(
+              fontSize: 20,
+              color: Colors.white,
+            ),
+          ),
+          backgroundColor: AppTheme.primaryColor,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Scanning for zones...',
+                style: GameTextStyles.clockTime,
+              ),
+              const SizedBox(height: 20),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => context.go('/map'),
+                child: const Text('Back to Map'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
   ],
 );
