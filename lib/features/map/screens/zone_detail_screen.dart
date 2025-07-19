@@ -40,7 +40,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
       setState(() => _isLoading = true);
 
       // Load zone details (mock for now, replace with real API)
-      await Future.delayed(Duration(seconds: 1)); // Simulate API call
+      await Future.delayed(const Duration(seconds: 1)); // Simulate API call
 
       setState(() {
         _zone = Zone(
@@ -48,7 +48,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
           name: 'Mysterious Forest Zone',
           description:
               'Ancient forest filled with mysterious artifacts and hidden treasures.',
-          location: Location(latitude: 48.1486, longitude: 17.1077),
+          location: const Location(latitude: 48.1486, longitude: 17.1077),
           radiusMeters: 250,
           tierRequired: 1,
           zoneType: 'dynamic',
@@ -66,12 +66,12 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
 
   Future<void> _loadPlayerDetectors() async {
     try {
-      // TODO: Load from API/storage - for now use defaults
+      // ✅ FIX: Load from defaults and filter properly
       setState(() {
-        _availableDetectors = Detector.defaultDetectors
-            .where(
-                (detector) => detector.isOwned || _canAcquireDetector(detector))
-            .toList();
+        _availableDetectors = Detector.defaultDetectors.where((detector) {
+          // Show owned detectors and available ones
+          return detector.isOwned || _canAcquireDetector(detector);
+        }).toList();
       });
     } catch (e) {
       print('Failed to load detectors: $e');
@@ -89,7 +89,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text('Loading Zone...'),
+          title: const Text('Loading Zone...'),
           backgroundColor: AppTheme.primaryColor,
         ),
         body: Center(
@@ -100,18 +100,18 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
 
     if (_zone == null) {
       return Scaffold(
-        appBar: AppBar(title: Text('Zone Not Found')),
+        appBar: AppBar(title: const Text('Zone Not Found')),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline, size: 64, color: Colors.red),
-              SizedBox(height: 16),
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
               Text('Zone not found', style: GameTextStyles.header),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => context.pop(),
-                child: Text('Go Back'),
+                child: const Text('Go Back'),
               ),
             ],
           ),
@@ -125,33 +125,33 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
         backgroundColor: AppTheme.primaryColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => context.pop(),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.map, color: Colors.white),
+            icon: const Icon(Icons.map, color: Colors.white),
             onPressed: () => context.go('/map'),
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Zone Info Card
             _buildZoneInfoCard(),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
 
             // Zone Status Card
             _buildZoneStatusCard(),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
 
             // Detector Selection (only if in zone)
             if (_isInZone) ...[
               _buildDetectorSelection(),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
             ],
 
             // Action Buttons
@@ -166,7 +166,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
     return Card(
       elevation: 4,
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -174,9 +174,9 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
               children: [
                 Text(
                   _getBiomeEmoji(_zone!.biome ?? 'unknown'),
-                  style: TextStyle(fontSize: 32),
+                  style: const TextStyle(fontSize: 32),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,11 +197,11 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
                 ),
                 Text(
                   _getDangerEmoji(_zone!.dangerLevel ?? 'unknown'),
-                  style: TextStyle(fontSize: 24),
+                  style: const TextStyle(fontSize: 24),
                 ),
               ],
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -228,7 +228,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
           : Colors.grey.withOpacity(0.1),
       elevation: 4,
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Container(
@@ -244,7 +244,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
                 size: 24,
               ),
             ),
-            SizedBox(width: 16),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,14 +281,14 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
     return Card(
       elevation: 4,
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Icon(Icons.search, color: AppTheme.primaryColor),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   'Select Detection Equipment',
                   style: GameTextStyles.clockTime.copyWith(
@@ -298,7 +298,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
                 ),
               ],
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             ..._availableDetectors.map(
               (detector) => _buildDetectorOption(detector),
             ),
@@ -313,7 +313,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
     final canUse = detector.isOwned;
 
     return Container(
-      margin: EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 8),
       child: Card(
         color: isSelected
             ? AppTheme.primaryColor.withOpacity(0.1)
@@ -347,14 +347,14 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
                 ),
               ),
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: detector.rarity.color,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   detector.rarity.displayName,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 10,
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -373,18 +373,18 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
                   color: canUse ? Colors.grey[600] : Colors.grey[400],
                 ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   _buildStatBar('Range', detector.range, canUse),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   _buildStatBar('Precision', detector.precision, canUse),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   _buildStatBar('Battery', detector.battery, canUse),
                 ],
               ),
               if (detector.specialAbility != null) ...[
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   '🔮 ${detector.specialAbility}',
                   style: TextStyle(
@@ -419,7 +419,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
             color: enabled ? Colors.grey[600] : Colors.grey[400],
           ),
         ),
-        SizedBox(height: 2),
+        const SizedBox(height: 2),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(
@@ -427,7 +427,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
               (index) => Container(
                     width: 6,
                     height: 6,
-                    margin: EdgeInsets.only(right: 2),
+                    margin: const EdgeInsets.only(right: 2),
                     decoration: BoxDecoration(
                       color: index < value
                           ? (enabled ? AppTheme.primaryColor : Colors.grey)
@@ -444,9 +444,9 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
     return Column(
       children: [
         Icon(icon, color: AppTheme.primaryColor, size: 24),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
         Text(label, style: GameTextStyles.clockLabel.copyWith(fontSize: 11)),
-        SizedBox(height: 2),
+        const SizedBox(height: 2),
         Text(value, style: GameTextStyles.clockTime.copyWith(fontSize: 13)),
       ],
     );
@@ -463,7 +463,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
               height: 50,
               child: ElevatedButton.icon(
                 onPressed: _startScanning,
-                icon: Icon(Icons.radar),
+                icon: const Icon(Icons.radar),
                 label: Text('Start Scanning with ${_selectedDetector!.name}'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
@@ -475,7 +475,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
               ),
             ),
 
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
 
           // Exit Zone Button
           SizedBox(
@@ -483,11 +483,11 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
             height: 50,
             child: OutlinedButton.icon(
               onPressed: _exitZone,
-              icon: Icon(Icons.exit_to_app),
-              label: Text('Exit Zone'),
+              icon: const Icon(Icons.exit_to_app),
+              label: const Text('Exit Zone'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.red,
-                side: BorderSide(color: Colors.red),
+                side: const BorderSide(color: Colors.red),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -503,7 +503,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
         child: ElevatedButton.icon(
           onPressed: _isEntering ? null : _enterZone,
           icon: _isEntering
-              ? SizedBox(
+              ? const SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
@@ -511,7 +511,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-              : Icon(Icons.login),
+              : const Icon(Icons.login),
           label: Text(_isEntering ? 'Entering Zone...' : 'Enter Zone'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppTheme.primaryColor,
@@ -537,7 +537,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
 
     try {
       // TODO: Replace with real API call
-      await Future.delayed(Duration(seconds: 2));
+      await Future.delayed(const Duration(seconds: 2));
 
       setState(() {
         _isInZone = true;
@@ -554,7 +554,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
   Future<void> _exitZone() async {
     try {
       // TODO: Replace with real API call
-      await Future.delayed(Duration(seconds: 1));
+      await Future.delayed(const Duration(seconds: 1));
 
       setState(() {
         _isInZone = false;
@@ -572,8 +572,12 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
 
     _showSuccessMessage('Starting scan with ${_selectedDetector!.name}...');
 
-    // TODO: Navigate to scanning screen
-    // context.push('/zone/${widget.zoneId}/scan', extra: _selectedDetector);
+    // ✅ FIX: Navigate to detector screen with proper parameters
+    context.pushNamed(
+      'detector',
+      pathParameters: {'zoneId': widget.zoneId},
+      extra: _selectedDetector,
+    );
   }
 
   String _getBiomeEmoji(String biome) {
@@ -615,7 +619,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.green,
-        duration: Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -625,7 +629,7 @@ class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
-        duration: Duration(seconds: 3),
+        duration: const Duration(seconds: 3),
       ),
     );
   }

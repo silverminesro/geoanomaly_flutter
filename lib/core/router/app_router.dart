@@ -5,6 +5,8 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/map/screens/map_screen.dart';
 import '../../features/map/screens/zone_detail_screen.dart';
+import '../../features/map/screens/detector_screen.dart'; // ✅ PRIDANÉ
+import '../../features/map/models/detector_model.dart'; // ✅ PRIDANÉ
 import '../../features/inventory/screens/inventory_screen.dart';
 import '../../features/inventory/screens/inventory_detail_screen.dart';
 import '../../features/inventory/models/inventory_item_model.dart';
@@ -44,6 +46,17 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final zoneId = state.pathParameters['id']!;
         return ZoneDetailScreen(zoneId: zoneId);
+      },
+    ),
+
+    // ✅ NOVÉ: Detector screen route
+    GoRoute(
+      path: '/zone/:zoneId/detector',
+      name: 'detector',
+      builder: (context, state) {
+        final zoneId = state.pathParameters['zoneId']!;
+        final detector = state.extra as Detector;
+        return DetectorScreen(zoneId: zoneId, detector: detector);
       },
     ),
 
