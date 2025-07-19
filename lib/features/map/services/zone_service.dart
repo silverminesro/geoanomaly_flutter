@@ -109,6 +109,7 @@ class ZoneService {
     }
   }
 
+  // ✅ FIXED: Removed duplicate exitZone method
   Future<Map<String, dynamic>> exitZone(String zoneId) async {
     try {
       print('🚪 Exiting zone: $zoneId');
@@ -140,6 +141,23 @@ class ZoneService {
     } catch (e) {
       print('❌ Unexpected scan zone error: $e');
       throw Exception('Unexpected error occurred while scanning zone');
+    }
+  }
+
+  // Update location to backend for zone detection
+  Future<void> updatePlayerLocation(LocationModel location) async {
+    try {
+      await _dio.post('/user/location', data: {
+        'latitude': location.latitude,
+        'longitude': location.longitude,
+        'timestamp': location.timestamp.toIso8601String(),
+        'accuracy': location.accuracy,
+      });
+    } on DioException catch (e) {
+      // Don't throw errors for location updates to avoid spam
+      print('⚠️ Failed to update location: ${e.response?.data}');
+    } catch (e) {
+      print('⚠️ Unexpected location update error: $e');
     }
   }
 

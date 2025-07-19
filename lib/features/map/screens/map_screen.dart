@@ -1,28 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../services/location_service.dart';
 import '../services/zone_service.dart';
 import '../models/location_model.dart';
-import '../models/zone_model.dart';
+import '../../../core/models/zone_model.dart'; // ✅ Use core models
 import '../models/scan_result_model.dart';
 import '../widgets/zone_info_card.dart';
 import '../widgets/scan_button.dart';
+import '../providers/zone_tracking_provider.dart';
 
-class MapScreen extends StatefulWidget {
+class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
 
   @override
-  State<MapScreen> createState() => _MapScreenState();
+  ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends ConsumerState<MapScreen> {
   final MapController _mapController = MapController();
   LocationModel? _currentLocation;
   List<Marker> _markers = [];
-  List<ZoneWithDetails> _zones = []; // ✅ FIX: ZoneWithDetails namiesto Zone
+  List<ZoneWithDetails> _zones = []; // ✅ Using core ZoneWithDetails
   ScanResultModel? _lastScanResult;
   bool _isLoading = false;
   bool _isScanning = false;
@@ -52,12 +54,20 @@ class _MapScreenState extends State<MapScreen> {
         LatLng(location.latitude, location.longitude),
         15.0,
       );
+
+      // ✅ START ZONE TRACKING AUTOMATICALLY
+      _startZoneTracking();
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
       _showErrorSnackBar('Error getting location: $e');
     }
+  }
+
+  void _startZoneTracking() {
+    print('🎯 Starting zone tracking from MapScreen');
+    ref.read(zoneTrackingProvider.notifier).startTracking();
   }
 
   Future<void> _scanArea() async {
@@ -83,10 +93,15 @@ class _MapScreenState extends State<MapScreen> {
 
       setState(() {
         _lastScanResult = scanResult;
-        _zones = scanResult.zones; // ✅ FIX: Použiť ZoneWithDetails
+        _zones = scanResult.zones;
         _markers = _createZoneMarkers(scanResult.zones);
         _isScanning = false;
       });
+
+      // ✅ UPDATE NEARBY ZONES FOR AUTOMATIC TRACKING
+      ref
+          .read(zoneTrackingProvider.notifier)
+          .updateNearbyZones(scanResult.zones);
 
       _showSuccessSnackBar(
           'Found ${scanResult.zones.length} zones! (${scanResult.zonesCreated} new)');
@@ -99,16 +114,14 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   List<Marker> _createZoneMarkers(List<ZoneWithDetails> zones) {
-    // ✅ FIX: ZoneWithDetails parameter
     return zones.map((zoneWithDetails) {
-      final zone = zoneWithDetails.zone; // ✅ FIX: Extrahuj zone object
+      final zone = zoneWithDetails.zone;
       return Marker(
         point: LatLng(zone.location.latitude, zone.location.longitude),
         width: 50,
         height: 50,
         child: GestureDetector(
-          onTap: () =>
-              _showZoneDetails(zoneWithDetails), // ✅ FIX: Pošli ZoneWithDetails
+          onTap: () => _showZoneDetails(zoneWithDetails),
           child: Container(
             decoration: BoxDecoration(
               color: _getMarkerColor(zone.tierRequired),
@@ -127,7 +140,7 @@ class _MapScreenState extends State<MapScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    zone.biomeEmoji,
+                    _getBiomeEmoji(zone.biome ?? 'unknown'),
                     style: const TextStyle(fontSize: 16),
                   ),
                   Text(
@@ -145,6 +158,26 @@ class _MapScreenState extends State<MapScreen> {
         ),
       );
     }).toList();
+  }
+
+  // ✅ HELPER: Get biome emoji since it's not in Zone model
+  String _getBiomeEmoji(String biome) {
+    switch (biome.toLowerCase()) {
+      case 'forest':
+        return '🌲';
+      case 'swamp':
+        return '🐸';
+      case 'desert':
+        return '🏜️';
+      case 'mountain':
+        return '⛰️';
+      case 'wasteland':
+        return '☠️';
+      case 'volcanic':
+        return '🌋';
+      default:
+        return '🌍';
+    }
   }
 
   Color _getMarkerColor(int tier) {
@@ -165,15 +198,13 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _showZoneDetails(ZoneWithDetails zoneWithDetails) {
-    // ✅ FIX: ZoneWithDetails parameter
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => ZoneInfoCard(
-        zone: zoneWithDetails.zone, // ✅ FIX: Extrahuj zone object
-        zoneDetails:
-            zoneWithDetails, // ✅ FIX: Pošli aj ZoneWithDetails pre extra info
+        zone: zoneWithDetails.zone,
+        zoneDetails: zoneWithDetails,
         onEnterZone: () => _enterZone(zoneWithDetails.zone),
         onNavigateToZone: () => _navigateToZone(zoneWithDetails.zone),
       ),
@@ -232,6 +263,11 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ WATCH ZONE TRACKING STATE
+    final zoneTrackingState = ref.watch(zoneTrackingProvider);
+    final currentZone = zoneTrackingState.currentZone;
+    final trackingMessage = zoneTrackingState.lastMessage;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -244,6 +280,21 @@ class _MapScreenState extends State<MapScreen> {
         backgroundColor: AppTheme.primaryColor,
         elevation: 0,
         actions: [
+          // ✅ ZONE TRACKING STATUS INDICATOR
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: Center(
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color:
+                      zoneTrackingState.isTracking ? Colors.green : Colors.red,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.person, color: Colors.white),
             onPressed: () => context.go('/profile'),
@@ -321,6 +372,108 @@ class _MapScreenState extends State<MapScreen> {
             ],
           ),
 
+          // ✅ CURRENT ZONE INDICATOR
+          if (currentZone != null)
+            Positioned(
+              top: 20,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_on, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Currently in Zone:',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                          Text(
+                            currentZone.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      _getBiomeEmoji(currentZone.biome ?? 'unknown'),
+                      style: const TextStyle(fontSize: 24),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // ✅ ZONE TRACKING MESSAGE (temporary notifications)
+          if (trackingMessage != null)
+            Positioned(
+              top: currentZone != null ? 100 : 20,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info, color: Colors.white, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        trackingMessage,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close,
+                          color: Colors.white, size: 16),
+                      onPressed: () {
+                        ref.read(zoneTrackingProvider.notifier).clearMessage();
+                      },
+                      constraints:
+                          const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: const EdgeInsets.all(4),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // Loading overlay
           if (_isLoading)
             Container(
@@ -376,7 +529,9 @@ class _MapScreenState extends State<MapScreen> {
           // Zone count info
           if (_zones.isNotEmpty)
             Positioned(
-              top: 20,
+              top: currentZone != null
+                  ? (trackingMessage != null ? 180 : 100)
+                  : 20,
               left: 20,
               child: Container(
                 padding:
@@ -393,6 +548,7 @@ class _MapScreenState extends State<MapScreen> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+                ),
               ),
             ),
         ],
@@ -402,6 +558,8 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
+    // ✅ STOP ZONE TRACKING
+    ref.read(zoneTrackingProvider.notifier).stopTracking();
     _mapController.dispose();
     super.dispose();
   }
