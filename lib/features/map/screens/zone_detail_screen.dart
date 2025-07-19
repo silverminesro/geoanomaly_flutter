@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/models/zone_model.dart';
 import '../services/zone_service.dart';
-import '../models/zone_model.dart';
+import '../models/detector_model.dart';
 
-class ZoneDetailScreen extends StatefulWidget {
+class ZoneDetailScreen extends ConsumerStatefulWidget {
   final String zoneId;
 
   const ZoneDetailScreen({
@@ -13,14 +15,16 @@ class ZoneDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<ZoneDetailScreen> createState() => _ZoneDetailScreenState();
+  ConsumerState<ZoneDetailScreen> createState() => _ZoneDetailScreenState();
 }
 
-class _ZoneDetailScreenState extends State<ZoneDetailScreen> {
+class _ZoneDetailScreenState extends ConsumerState<ZoneDetailScreen> {
   Zone? _zone;
   bool _isLoading = true;
-  bool _isEntered = false;
-  Map<String, dynamic>? _zoneData;
+  bool _isInZone = false;
+  bool _isEntering = false;
+  Detector? _selectedDetector;
+  List<Detector> _availableDetectors = [];
 
   final ZoneService _zoneService = ZoneService();
 
@@ -28,130 +32,96 @@ class _ZoneDetailScreenState extends State<ZoneDetailScreen> {
   void initState() {
     super.initState();
     _loadZoneDetails();
+    _loadPlayerDetectors();
   }
 
   Future<void> _loadZoneDetails() async {
     try {
-      setState(() {
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
 
-      final zone = await _zoneService.getZoneDetails(widget.zoneId);
+      // Load zone details (mock for now, replace with real API)
+      await Future.delayed(Duration(seconds: 1)); // Simulate API call
+
       setState(() {
-        _zone = zone;
+        _zone = Zone(
+          id: widget.zoneId,
+          name: 'Mysterious Forest Zone',
+          description:
+              'Ancient forest filled with mysterious artifacts and hidden treasures.',
+          location: Location(latitude: 48.1486, longitude: 17.1077),
+          radiusMeters: 250,
+          tierRequired: 1,
+          zoneType: 'dynamic',
+          biome: 'forest',
+          dangerLevel: 'medium',
+          isActive: true,
+        );
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      _showErrorSnackBar('Error loading zone details: $e');
+      setState(() => _isLoading = false);
+      _showErrorMessage('Failed to load zone details: $e');
     }
   }
 
-  Future<void> _enterZone() async {
-    if (_zone == null) return;
-
+  Future<void> _loadPlayerDetectors() async {
     try {
+      // TODO: Load from API/storage - for now use defaults
       setState(() {
-        _isLoading = true;
+        _availableDetectors = Detector.defaultDetectors
+            .where(
+                (detector) => detector.isOwned || _canAcquireDetector(detector))
+            .toList();
       });
-
-      final result = await _zoneService.enterZone(widget.zoneId);
-      setState(() {
-        _isEntered = true;
-        _zoneData = result;
-        _isLoading = false;
-      });
-
-      _showSuccessSnackBar('Successfully entered ${_zone!.name}!');
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      _showErrorSnackBar('Error entering zone: $e');
+      print('Failed to load detectors: $e');
     }
   }
 
-  Future<void> _exitZone() async {
-    if (_zone == null) return;
-
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final result = await _zoneService.exitZone(widget.zoneId);
-      setState(() {
-        _isEntered = false;
-        _zoneData = result;
-        _isLoading = false;
-      });
-
-      _showSuccessSnackBar('Exited ${_zone!.name}');
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      _showErrorSnackBar('Error exiting zone: $e');
-    }
-  }
-
-  Future<void> _scanZone() async {
-    if (_zone == null || !_isEntered) return;
-
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final result = await _zoneService.scanZone(widget.zoneId);
-      setState(() {
-        _zoneData = result;
-        _isLoading = false;
-      });
-
-      final artifactsCount = result['total_artifacts'] ?? 0;
-      final gearCount = result['total_gear'] ?? 0;
-      _showSuccessSnackBar(
-          'Found $artifactsCount artifacts and $gearCount gear items!');
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      _showErrorSnackBar('Error scanning zone: $e');
-    }
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-      ),
-    );
+  bool _canAcquireDetector(Detector detector) {
+    // TODO: Check player tier and ownership
+    // For now, show all detectors but disable locked ones
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _zone?.name ?? 'Zone Details',
-          style: GameTextStyles.clockTime.copyWith(
-            fontSize: 20,
-            color: Colors.white,
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Loading Zone...'),
+          backgroundColor: AppTheme.primaryColor,
+        ),
+        body: Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryColor),
+        ),
+      );
+    }
+
+    if (_zone == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text('Zone Not Found')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.red),
+              SizedBox(height: 16),
+              Text('Zone not found', style: GameTextStyles.header),
+              SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => context.pop(),
+                child: Text('Go Back'),
+              ),
+            ],
           ),
         ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_zone!.name),
         backgroundColor: AppTheme.primaryColor,
         elevation: 0,
         leading: IconButton(
@@ -165,374 +135,497 @@ class _ZoneDetailScreenState extends State<ZoneDetailScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: AppTheme.primaryColor,
-              ),
-            )
-          : _zone == null
-              ? Center(
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Zone Info Card
+            _buildZoneInfoCard(),
+            SizedBox(height: 16),
+
+            // Zone Status Card
+            _buildZoneStatusCard(),
+            SizedBox(height: 16),
+
+            // Detector Selection (only if in zone)
+            if (_isInZone) ...[
+              _buildDetectorSelection(),
+              SizedBox(height: 16),
+            ],
+
+            // Action Buttons
+            _buildActionButtons(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildZoneInfoCard() {
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  _getBiomeEmoji(_zone!.biome ?? 'unknown'),
+                  style: TextStyle(fontSize: 32),
+                ),
+                SizedBox(width: 12),
+                Expanded(
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red,
-                      ),
-                      SizedBox(height: 16),
                       Text(
-                        'Zone not found',
-                        style: GameTextStyles.clockTime.copyWith(fontSize: 18),
+                        _zone!.name,
+                        style: GameTextStyles.clockTime.copyWith(
+                          fontSize: 24,
+                          color: AppTheme.primaryColor,
+                        ),
                       ),
-                      SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () => context.go('/map'),
-                        child: Text('Back to Map'),
+                      Text(
+                        _zone!.description ?? 'No description available',
+                        style: GameTextStyles.clockLabel.copyWith(fontSize: 14),
                       ),
                     ],
                   ),
-                )
-              : _buildZoneContent(),
-    );
-  }
-
-  Widget _buildZoneContent() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Zone header
-          _buildZoneHeader(),
-          SizedBox(height: 20),
-
-          // Zone info
-          _buildZoneInfo(),
-          SizedBox(height: 20),
-
-          // Zone status
-          _buildZoneStatus(),
-          SizedBox(height: 20),
-
-          // Action buttons
-          _buildActionButtons(),
-          SizedBox(height: 20),
-
-          // Zone items (if scanned)
-          if (_zoneData != null && _isEntered) _buildZoneItems(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildZoneHeader() {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                _zone!.biomeEmoji,
-                style: TextStyle(fontSize: 32),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  _zone!.name,
-                  style: GameTextStyles.clockTime.copyWith(
-                    fontSize: 24,
-                    color: AppTheme.primaryColor,
-                  ),
                 ),
-              ),
-              Text(
-                _zone!.dangerLevelEmoji,
-                style: TextStyle(fontSize: 24),
-              ),
-            ],
-          ),
-          SizedBox(height: 8),
-          if (_zone!.description.isNotEmpty)
-            Text(
-              _zone!.description,
-              style: GameTextStyles.clockLabel.copyWith(
-                fontSize: 14,
-                color: Colors.grey[400],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildZoneInfo() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Zone Information',
-            style: GameTextStyles.clockTime.copyWith(
-              fontSize: 18,
-              color: AppTheme.primaryColor,
-            ),
-          ),
-          SizedBox(height: 12),
-          _buildInfoRow('Biome', _zone!.biome),
-          _buildInfoRow('Danger Level', _zone!.dangerLevel),
-          _buildInfoRow('Tier Required', _zone!.tierName),
-          _buildInfoRow('Radius', '${_zone!.radiusMeters}m'),
-          _buildInfoRow('Type', _zone!.zoneType),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: GameTextStyles.clockLabel.copyWith(fontSize: 14),
-          ),
-          Text(
-            value,
-            style: GameTextStyles.clockTime.copyWith(fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildZoneStatus() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _isEntered
-            ? Colors.green.withOpacity(0.1)
-            : Colors.grey.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _isEntered ? Colors.green : Colors.grey,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            _isEntered ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: _isEntered ? Colors.green : Colors.grey,
-            size: 24,
-          ),
-          SizedBox(width: 12),
-          Text(
-            _isEntered ? 'You are in this zone' : 'You are not in this zone',
-            style: TextStyle(
-              color: _isEntered ? Colors.green : Colors.grey,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: _isEntered ? _exitZone : _enterZone,
-            icon: Icon(_isEntered ? Icons.exit_to_app : Icons.login),
-            label: Text(_isEntered ? 'Exit Zone' : 'Enter Zone'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _isEntered ? Colors.red : AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ),
-        if (_isEntered) ...[
-          SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _scanZone,
-              icon: Icon(Icons.search),
-              label: Text('Scan Zone'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.cardColor,
-                foregroundColor: AppTheme.primaryColor,
-                padding: EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: AppTheme.primaryColor),
+                Text(
+                  _getDangerEmoji(_zone!.dangerLevel ?? 'unknown'),
+                  style: TextStyle(fontSize: 24),
                 ),
-              ),
+              ],
             ),
-          ),
-        ],
-      ],
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                    child: _buildInfoItem('Tier Required',
+                        'T${_zone!.tierRequired}', Icons.star)),
+                Expanded(
+                    child: _buildInfoItem(
+                        'Biome', _zone!.biome ?? 'Unknown', Icons.terrain)),
+                Expanded(
+                    child: _buildInfoItem('Danger',
+                        _zone!.dangerLevel ?? 'Unknown', Icons.warning)),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildZoneItems() {
-    final artifacts = _zoneData?['artifacts'] as List? ?? [];
-    final gear = _zoneData?['gear'] as List? ?? [];
-
-    if (artifacts.isEmpty && gear.isEmpty) {
-      return Container(
-        padding: EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.borderColor),
-        ),
-        child: Column(
+  Widget _buildZoneStatusCard() {
+    return Card(
+      color: _isInZone
+          ? Colors.green.withOpacity(0.1)
+          : Colors.grey.withOpacity(0.1),
+      elevation: 4,
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Row(
           children: [
-            Icon(
-              Icons.search_off,
-              size: 48,
-              color: Colors.grey,
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _isInZone ? Colors.green : Colors.grey,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(
+                _isInZone ? Icons.location_on : Icons.location_off,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
-            SizedBox(height: 8),
-            Text(
-              'No items found in this zone',
-              style: GameTextStyles.clockTime.copyWith(
-                fontSize: 16,
-                color: Colors.grey,
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _isInZone
+                        ? 'You are in this zone'
+                        : 'You are outside this zone',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _isInZone ? Colors.green : Colors.grey,
+                    ),
+                  ),
+                  Text(
+                    _isInZone
+                        ? 'Select a detector to start scanning for artifacts'
+                        : 'Enter the zone to begin artifact detection',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _isInZone ? Colors.green[700] : Colors.grey[600],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
+  Widget _buildDetectorSelection() {
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.search, color: AppTheme.primaryColor),
+                SizedBox(width: 8),
+                Text(
+                  'Select Detection Equipment',
+                  style: GameTextStyles.clockTime.copyWith(
+                    fontSize: 18,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            ..._availableDetectors.map(
+              (detector) => _buildDetectorOption(detector),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetectorOption(Detector detector) {
+    final isSelected = _selectedDetector?.id == detector.id;
+    final canUse = detector.isOwned;
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 8),
+      child: Card(
+        color: isSelected
+            ? AppTheme.primaryColor.withOpacity(0.1)
+            : canUse
+                ? null
+                : Colors.grey.withOpacity(0.1),
+        child: ListTile(
+          leading: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: canUse
+                  ? detector.rarity.color.withOpacity(0.2)
+                  : Colors.grey.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              detector.icon,
+              color: canUse ? detector.rarity.color : Colors.grey,
+            ),
+          ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  detector.name,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: canUse ? null : Colors.grey,
+                  ),
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: detector.rarity.color,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  detector.rarity.displayName,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                detector.description,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: canUse ? Colors.grey[600] : Colors.grey[400],
+                ),
+              ),
+              SizedBox(height: 8),
+              Row(
+                children: [
+                  _buildStatBar('Range', detector.range, canUse),
+                  SizedBox(width: 12),
+                  _buildStatBar('Precision', detector.precision, canUse),
+                  SizedBox(width: 12),
+                  _buildStatBar('Battery', detector.battery, canUse),
+                ],
+              ),
+              if (detector.specialAbility != null) ...[
+                SizedBox(height: 4),
+                Text(
+                  '🔮 ${detector.specialAbility}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                    color: canUse ? AppTheme.primaryColor : Colors.grey,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          trailing: isSelected
+              ? Icon(Icons.check_circle, color: AppTheme.primaryColor)
+              : canUse
+                  ? Icon(Icons.radio_button_unchecked, color: Colors.grey)
+                  : Icon(Icons.lock, color: Colors.grey),
+          enabled: canUse,
+          onTap: canUse ? () => _selectDetector(detector) : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatBar(String label, int value, bool enabled) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Zone Items',
-          style: GameTextStyles.clockTime.copyWith(
-            fontSize: 18,
-            color: AppTheme.primaryColor,
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: enabled ? Colors.grey[600] : Colors.grey[400],
           ),
         ),
-        SizedBox(height: 12),
-        if (artifacts.isNotEmpty) ...[
-          _buildItemSection('Artifacts', artifacts, Icons.diamond),
-          SizedBox(height: 16),
-        ],
-        if (gear.isNotEmpty) ...[
-          _buildItemSection('Gear', gear, Icons.construction),
-        ],
+        SizedBox(height: 2),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(
+              5,
+              (index) => Container(
+                    width: 6,
+                    height: 6,
+                    margin: EdgeInsets.only(right: 2),
+                    decoration: BoxDecoration(
+                      color: index < value
+                          ? (enabled ? AppTheme.primaryColor : Colors.grey)
+                          : Colors.grey[300],
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  )),
+        ),
       ],
     );
   }
 
-  Widget _buildItemSection(String title, List items, IconData icon) {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildInfoItem(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: AppTheme.primaryColor, size: 24),
+        SizedBox(height: 4),
+        Text(label, style: GameTextStyles.clockLabel.copyWith(fontSize: 11)),
+        SizedBox(height: 2),
+        Text(value, style: GameTextStyles.clockTime.copyWith(fontSize: 13)),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    if (_isInZone) {
+      return Column(
         children: [
-          Row(
-            children: [
-              Icon(icon, color: AppTheme.primaryColor),
-              SizedBox(width: 8),
-              Text(
-                title,
-                style: GameTextStyles.clockTime.copyWith(
-                  fontSize: 16,
-                  color: AppTheme.primaryColor,
+          // Start Scanning Button (only if detector selected)
+          if (_selectedDetector != null)
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: _startScanning,
+                icon: Icon(Icons.radar),
+                label: Text('Start Scanning with ${_selectedDetector!.name}'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-              Spacer(),
-              Text(
-                '${items.length} items',
-                style: GameTextStyles.clockLabel.copyWith(fontSize: 12),
-              ),
-            ],
-          ),
+            ),
+
           SizedBox(height: 12),
-          ...items.map((item) => _buildItemTile(item)),
+
+          // Exit Zone Button
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: _exitZone,
+              icon: Icon(Icons.exit_to_app),
+              label: Text('Exit Zone'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: BorderSide(color: Colors.red),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
         ],
+      );
+    } else {
+      return SizedBox(
+        width: double.infinity,
+        height: 50,
+        child: ElevatedButton.icon(
+          onPressed: _isEntering ? null : _enterZone,
+          icon: _isEntering
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : Icon(Icons.login),
+          label: Text(_isEntering ? 'Entering Zone...' : 'Enter Zone'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.primaryColor,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _selectDetector(Detector detector) {
+    setState(() {
+      _selectedDetector = detector;
+    });
+    _showSuccessMessage('Selected ${detector.name}');
+  }
+
+  Future<void> _enterZone() async {
+    setState(() => _isEntering = true);
+
+    try {
+      // TODO: Replace with real API call
+      await Future.delayed(Duration(seconds: 2));
+
+      setState(() {
+        _isInZone = true;
+        _isEntering = false;
+      });
+
+      _showSuccessMessage('Successfully entered ${_zone!.name}!');
+    } catch (e) {
+      setState(() => _isEntering = false);
+      _showErrorMessage('Failed to enter zone: $e');
+    }
+  }
+
+  Future<void> _exitZone() async {
+    try {
+      // TODO: Replace with real API call
+      await Future.delayed(Duration(seconds: 1));
+
+      setState(() {
+        _isInZone = false;
+        _selectedDetector = null;
+      });
+
+      _showSuccessMessage('Exited ${_zone!.name}');
+    } catch (e) {
+      _showErrorMessage('Failed to exit zone: $e');
+    }
+  }
+
+  Future<void> _startScanning() async {
+    if (_selectedDetector == null) return;
+
+    _showSuccessMessage('Starting scan with ${_selectedDetector!.name}...');
+
+    // TODO: Navigate to scanning screen
+    // context.push('/zone/${widget.zoneId}/scan', extra: _selectedDetector);
+  }
+
+  String _getBiomeEmoji(String biome) {
+    switch (biome.toLowerCase()) {
+      case 'forest':
+        return '🌲';
+      case 'swamp':
+        return '🐸';
+      case 'desert':
+        return '🏜️';
+      case 'mountain':
+        return '⛰️';
+      case 'wasteland':
+        return '☠️';
+      case 'volcanic':
+        return '🌋';
+      default:
+        return '🌍';
+    }
+  }
+
+  String _getDangerEmoji(String danger) {
+    switch (danger.toLowerCase()) {
+      case 'low':
+        return '🟢';
+      case 'medium':
+        return '🟡';
+      case 'high':
+        return '🟠';
+      case 'extreme':
+        return '🔴';
+      default:
+        return '⚪';
+    }
+  }
+
+  void _showSuccessMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
       ),
     );
   }
 
-  Widget _buildItemTile(Map<String, dynamic> item) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.backgroundColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.borderColor.withOpacity(0.5)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            item['type'] == 'artifact' ? Icons.diamond : Icons.construction,
-            color: AppTheme.primaryColor,
-            size: 20,
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item['name'] ?? 'Unknown Item',
-                  style: GameTextStyles.clockTime.copyWith(fontSize: 14),
-                ),
-                if (item['rarity'] != null)
-                  Text(
-                    item['rarity'],
-                    style: GameTextStyles.clockLabel.copyWith(fontSize: 12),
-                  ),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // TODO: Implement collect item
-              _showSuccessSnackBar('Collecting ${item['name']}...');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              minimumSize: Size(0, 0),
-            ),
-            child: Text('Collect', style: TextStyle(fontSize: 12)),
-          ),
-        ],
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 3),
       ),
     );
   }
