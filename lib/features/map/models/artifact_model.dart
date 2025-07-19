@@ -7,6 +7,7 @@ class DetectableItem {
   final double longitude;
   final Map<String, dynamic> properties;
   final bool isActive;
+  bool isVeryClose = false; // Added for 2m proximity check
 
   DetectableItem({
     required this.id,
