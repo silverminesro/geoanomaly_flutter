@@ -495,7 +495,7 @@ class _DetectorScreenState extends ConsumerState<DetectorScreen>
           ),
           SizedBox(width: 12),
           ElevatedButton.icon(
-            onPressed: _closestItem != null && _closestItem!.isVeryClose
+            onPressed: _closestItem != null && _closestItem!.isVeryClose && !_isLoading
                 ? () => _collectItem(_closestItem!)
                 : null,
             icon: Icon(Icons.inventory),
@@ -575,6 +575,11 @@ class _DetectorScreenState extends ConsumerState<DetectorScreen>
   Future<void> _collectItem(DetectableItem item) async {
     if (!item.isVeryClose) {
       _showMessage('Move closer to collect this item (within 2m)', isError: true);
+      return;
+    }
+
+    if (_isLoading) {
+      _showMessage('Please wait, already processing...', isError: true);
       return;
     }
 
