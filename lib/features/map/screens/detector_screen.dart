@@ -28,10 +28,14 @@ class _DetectorScreenState extends ConsumerState<DetectorScreen>
   // State
   List<DetectableItem> _artifacts = [];
   List<DetectableItem> _gear = [];
+  List<DetectableItem> _allItems = [];
+  List<DetectableItem> _detectableItems = [];
   Position? _currentPosition;
   bool _isScanning = false;
   bool _isLoading = true;
   String _status = 'Initializing detector...';
+  
+  late ZoneService _zoneService;
 
   // Animation
   late AnimationController _radarController;
@@ -49,6 +53,7 @@ class _DetectorScreenState extends ConsumerState<DetectorScreen>
   @override
   void initState() {
     super.initState();
+    _zoneService = ZoneService();
     _initializeAnimations();
     _loadArtifacts();
     _startLocationUpdates();
@@ -76,7 +81,7 @@ class _DetectorScreenState extends ConsumerState<DetectorScreen>
       });
 
       // TODO: Replace with real API call
-      final response = await ZoneService().getZoneArtifacts(widget.zoneId);
+      final response = await _zoneService.getZoneArtifacts(widget.zoneId);
 
       setState(() {
         _artifacts = response['artifacts']
@@ -87,9 +92,14 @@ class _DetectorScreenState extends ConsumerState<DetectorScreen>
                 ?.map<DetectableItem>((json) => DetectableItem.fromJson(json))
                 ?.toList() ??
             [];
+        
+        // Update combined lists
+        _allItems = [..._artifacts, ..._gear];
+        _detectableItems = [..._allItems]; // Start with all items as detectable
+        
         _isLoading = false;
         _status =
-            'Detector ready. ${_artifacts.length + _gear.length} items detected.';
+            'Detector ready. ${_allItems.length} items detected.';
       });
 
       _startScanning();
@@ -132,20 +142,22 @@ class _DetectorScreenState extends ConsumerState<DetectorScreen>
   void _updateDetection() {
     if (_currentPosition == null) return;
 
-    final allItems = [..._artifacts, ..._gear];
-    if (allItems.isEmpty) return;
+    if (_detectableItems.isEmpty) return;
 
     // Find closest item
     DetectableItem? closest;
     double minDistance = double.infinity;
 
-    for (final item in allItems) {
+    for (final item in _detectableItems) {
       final distance = Geolocator.distanceBetween(
         _currentPosition!.latitude,
         _currentPosition!.longitude,
         item.latitude,
         item.longitude,
       );
+
+      // Update isVeryClose property for 2m proximity check
+      item.isVeryClose = distance <= 2.0;
 
       if (distance < minDistance) {
         minDistance = distance;
@@ -287,7 +299,7 @@ class _DetectorScreenState extends ConsumerState<DetectorScreen>
 
           // Items count
           Text(
-            '${_artifacts.length + _gear.length} targets',
+            '${_detectableItems.length} targets',
             style: TextStyle(color: Colors.white, fontSize: 12),
           ),
         ],
@@ -483,7 +495,7 @@ class _DetectorScreenState extends ConsumerState<DetectorScreen>
           ),
           SizedBox(width: 12),
           ElevatedButton.icon(
-            onPressed: _closestItem != null && _signalStrength > 0.8
+            onPressed: _closestItem != null && _closestItem!.isVeryClose && !_isLoading
                 ? () => _collectItem(_closestItem!)
                 : null,
             icon: Icon(Icons.inventory),
@@ -561,8 +573,89 @@ class _DetectorScreenState extends ConsumerState<DetectorScreen>
   }
 
   Future<void> _collectItem(DetectableItem item) async {
-    // TODO: Implement collection logic
-    print('Collecting: ${item.name}');
+    if (!item.isVeryClose) {
+      _showMessage('Move closer to collect this item (within 2m)', isError: true);
+      return;
+    }
+
+    if (_isLoading) {
+      _showMessage('Please wait, already processing...', isError: true);
+      return;
+    }
+
+    try {
+      setState(() => _isLoading = true);
+
+      // ✅ Call the Collection API
+      final response = await _zoneService.collectItem(widget.zoneId, item.type, item.id);
+      
+      // ✅ Item automatically added to DB inventory via backend
+      
+      // Remove from local lists
+      setState(() {
+        _allItems.removeWhere((i) => i.id == item.id);
+        _detectableItems.removeWhere((i) => i.id == item.id);
+        
+        // Remove from specific type lists
+        if (item.type == 'artifact') {
+          _artifacts.removeWhere((i) => i.id == item.id);
+        } else if (item.type == 'gear') {
+          _gear.removeWhere((i) => i.id == item.id);
+        }
+        
+        if (_closestItem?.id == item.id) {
+          _closestItem = null;
+        }
+        _isLoading = false;
+      });
+
+      // ✅ Show success with XP info from backend
+      _showCollectionSuccess(item, response);
+
+      if (_isScanning) {
+        _updateDetection();
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showMessage('Failed to collect ${item.name}: $e', isError: true);
+    }
+  }
+
+  void _showCollectionSuccess(DetectableItem item, Map<String, dynamic> response) {
+    final xpGained = response['xp_gained'] ?? 0;
+    final levelUp = response['level_up'] ?? false;
+    final newLevel = response['current_level'] ?? 0;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('✅ ${item.name} collected!', 
+                 style: TextStyle(fontWeight: FontWeight.bold)),
+            if (xpGained > 0)
+              Text('🌟 +$xpGained XP gained'),
+            if (levelUp)
+              Text('🎉 Level Up! Now level $newLevel', 
+                   style: TextStyle(color: Colors.orange)),
+            Text('📦 Added to inventory'),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: levelUp ? 6 : 3),
+      ),
+    );
+  }
+
+  void _showMessage(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.blue,
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 
   void _showDetectorSettings() {
