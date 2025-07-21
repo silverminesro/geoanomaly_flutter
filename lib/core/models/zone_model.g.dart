@@ -63,6 +63,8 @@ ZoneWithDetails _$ZoneWithDetailsFromJson(Map<String, dynamic> json) =>
       canEnter: json['canEnter'] as bool,
       playerCount: (json['player_count'] as num?)?.toInt(),
       lastVisited: json['last_visited'] as String?,
+      bearingFromPlayer: json['bearingFromPlayer'] as String?,
+      compassDirection: json['compassDirection'] as String?,
     );
 
 Map<String, dynamic> _$ZoneWithDetailsToJson(ZoneWithDetails instance) =>
@@ -74,6 +76,8 @@ Map<String, dynamic> _$ZoneWithDetailsToJson(ZoneWithDetails instance) =>
       'canEnter': instance.canEnter,
       'player_count': instance.playerCount,
       'last_visited': instance.lastVisited,
+      'bearingFromPlayer': instance.bearingFromPlayer,
+      'compassDirection': instance.compassDirection,
     };
 
 ScanAreaResponse _$ScanAreaResponseFromJson(Map<String, dynamic> json) =>

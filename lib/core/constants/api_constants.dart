@@ -10,6 +10,7 @@ class ApiConstants {
   static const String scanArea = '/game/scan-area';
   static const String nearbyZones = '/game/zones/nearby';
   static const String enterZone = '/game/zones/{id}/enter';
+  static const String exitZone = '/game/zones/{id}/exit';
   static const String scanZone = '/game/zones/{id}/scan';
   static const String collectItem = '/game/zones/{id}/collect';
 

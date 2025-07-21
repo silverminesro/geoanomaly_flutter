@@ -1,20 +1,40 @@
+// lib/features/map/services/zone_service.dart
 import 'package:dio/dio.dart';
 import 'dart:math' as math;
 import '../../../core/network/api_client.dart';
-import '../models/zone_model.dart';
+import '../../../core/models/zone_model.dart';
 import '../models/scan_result_model.dart';
 import '../models/location_model.dart';
 
 class ZoneService {
   final Dio _dio = ApiClient.dio;
 
+  // ✅ ENHANCED: scanArea with detailed debugging
   Future<ScanResultModel> scanArea(LocationModel location) async {
     try {
+      print('🚨🚨🚨 SCAN AREA CALLED - WHO CALLED THIS? 🚨🚨🚨');
       print('🔍 Scanning area: ${location.latitude}, ${location.longitude}');
+      print('📊 Stack trace: ${StackTrace.current}');
+      print('⏰ Timestamp: ${DateTime.now().toIso8601String()}');
 
-      // ✅ Skontroluj auth token
+      // Check auth token
       if (ApiClient.authToken == null) {
         throw Exception('Authentication required. Please login first.');
+      }
+
+      // ✅ Get zone count before scan
+      int zoneCountBefore = 0;
+      try {
+        final nearbyResponse = await _dio.get('/game/zones/nearby',
+            queryParameters: {
+              'lat': location.latitude,
+              'lng': location.longitude,
+              'radius': 10000
+            });
+        zoneCountBefore = (nearbyResponse.data['zones'] as List?)?.length ?? 0;
+        print('📊 BEFORE SCAN AREA: $zoneCountBefore zones nearby');
+      } catch (e) {
+        print('⚠️ Could not get zone count before scan: $e');
       }
 
       final response = await _dio.post(
@@ -26,6 +46,29 @@ class ZoneService {
       );
 
       print('✅ Scan area response: ${response.data}');
+
+      // ✅ Get zone count after scan
+      try {
+        final nearbyResponse = await _dio.get('/game/zones/nearby',
+            queryParameters: {
+              'lat': location.latitude,
+              'lng': location.longitude,
+              'radius': 10000
+            });
+        final zoneCountAfter =
+            (nearbyResponse.data['zones'] as List?)?.length ?? 0;
+        print('📊 AFTER SCAN AREA: $zoneCountAfter zones nearby');
+
+        if (zoneCountAfter > zoneCountBefore) {
+          print(
+              '🚨 ZONE INCREASE DETECTED: +${zoneCountAfter - zoneCountBefore} zones created by scan-area');
+        } else {
+          print('✅ Zone count stable: $zoneCountAfter zones');
+        }
+      } catch (e) {
+        print('⚠️ Could not get zone count after scan: $e');
+      }
+
       return ScanResultModel.fromJson(response.data);
     } on DioException catch (e) {
       print('❌ Scan area DioException: ${e.response?.statusCode}');
@@ -53,6 +96,8 @@ class ZoneService {
     try {
       print(
           '🔍 Getting nearby zones: ${location.latitude}, ${location.longitude}');
+      print('📊 Radius: ${radius}m');
+      print('⏰ Timestamp: ${DateTime.now().toIso8601String()}');
 
       final response = await _dio.get(
         '/game/zones/nearby',
@@ -63,10 +108,18 @@ class ZoneService {
         },
       );
 
-      print('✅ Nearby zones response: ${response.data}');
-      return (response.data['zones'] as List? ?? [])
+      final zones = (response.data['zones'] as List? ?? [])
           .map((zone) => Zone.fromJson(zone))
           .toList();
+
+      print('✅ Nearby zones response: ${zones.length} zones found');
+
+      // ✅ Log zone IDs for tracking duplicates
+      for (int i = 0; i < zones.length; i++) {
+        print('📍 Zone ${i + 1}: ${zones[i].id} - ${zones[i].name}');
+      }
+
+      return zones;
     } on DioException catch (e) {
       print('❌ Nearby zones error: ${e.response?.data}');
       throw Exception('Failed to get nearby zones: ${e.message}');
@@ -79,6 +132,7 @@ class ZoneService {
   Future<Zone> getZoneDetails(String zoneId) async {
     try {
       print('🔍 Getting zone details: $zoneId');
+      print('⏰ Timestamp: ${DateTime.now().toIso8601String()}');
 
       final response = await _dio.get('/game/zones/$zoneId');
 
@@ -93,13 +147,46 @@ class ZoneService {
     }
   }
 
+  // ✅ ENHANCED: enterZone with debugging
   Future<Map<String, dynamic>> enterZone(String zoneId) async {
     try {
-      print('🚪 Entering zone: $zoneId');
+      print('🚪 ENTER ZONE: Starting enter for zone: $zoneId');
+      print('⏰ Timestamp: ${DateTime.now().toIso8601String()}');
+      print('📊 BEFORE ENTER: Checking zone count...');
+
+      // ✅ Get zone count before enter
+      int zoneCountBefore = 0;
+      try {
+        final nearbyResponse = await _dio.get('/game/zones/nearby',
+            queryParameters: {'lat': 48.1486, 'lng': 17.1077, 'radius': 10000});
+        zoneCountBefore = (nearbyResponse.data['zones'] as List?)?.length ?? 0;
+        print('📊 BEFORE ENTER ZONE: $zoneCountBefore zones nearby');
+      } catch (e) {
+        print('⚠️ Could not get zone count before enter: $e');
+      }
 
       final response = await _dio.post('/game/zones/$zoneId/enter');
 
       print('✅ Enter zone response: ${response.data}');
+
+      // ✅ Get zone count after enter
+      try {
+        final nearbyResponse = await _dio.get('/game/zones/nearby',
+            queryParameters: {'lat': 48.1486, 'lng': 17.1077, 'radius': 10000});
+        final zoneCountAfter =
+            (nearbyResponse.data['zones'] as List?)?.length ?? 0;
+        print('📊 AFTER ENTER ZONE: $zoneCountAfter zones nearby');
+
+        if (zoneCountAfter > zoneCountBefore) {
+          print(
+              '🚨 ZONE INCREASE ON ENTER: +${zoneCountAfter - zoneCountBefore} zones created');
+        } else {
+          print('✅ Zone count stable after enter: $zoneCountAfter zones');
+        }
+      } catch (e) {
+        print('⚠️ Could not get zone count after enter: $e');
+      }
+
       return response.data;
     } on DioException catch (e) {
       print('❌ Enter zone error: ${e.response?.data}');
@@ -110,13 +197,51 @@ class ZoneService {
     }
   }
 
+  // ✅ ENHANCED: exitZone with comprehensive debugging
   Future<Map<String, dynamic>> exitZone(String zoneId) async {
     try {
-      print('🚪 Exiting zone: $zoneId');
+      print('🚪🚨 EXIT ZONE: Starting exit for zone: $zoneId');
+      print('⏰ Timestamp: ${DateTime.now().toIso8601String()}');
+      print('📊 Stack trace: ${StackTrace.current}');
+      print('📊 BEFORE EXIT: Checking zone count...');
+
+      // ✅ Get zone count before exit
+      int zoneCountBefore = 0;
+      try {
+        final nearbyResponse = await _dio.get('/game/zones/nearby',
+            queryParameters: {'lat': 48.1486, 'lng': 17.1077, 'radius': 10000});
+        zoneCountBefore = (nearbyResponse.data['zones'] as List?)?.length ?? 0;
+        print('📊 BEFORE EXIT ZONE: $zoneCountBefore zones nearby');
+      } catch (e) {
+        print('⚠️ Could not get zone count before exit: $e');
+      }
 
       final response = await _dio.post('/game/zones/$zoneId/exit');
 
+      print('✅ EXIT ZONE: API call successful');
       print('✅ Exit zone response: ${response.data}');
+
+      // ✅ Get zone count after exit
+      try {
+        final nearbyResponse = await _dio.get('/game/zones/nearby',
+            queryParameters: {'lat': 48.1486, 'lng': 17.1077, 'radius': 10000});
+        final zoneCountAfter =
+            (nearbyResponse.data['zones'] as List?)?.length ?? 0;
+        print('📊 AFTER EXIT ZONE: $zoneCountAfter zones nearby');
+
+        if (zoneCountAfter > zoneCountBefore) {
+          print(
+              '🚨🚨🚨 ZONE DUPLICATION ON EXIT: +${zoneCountAfter - zoneCountBefore} zones created! 🚨🚨🚨');
+          print('🚨 This is the ROOT CAUSE of zone duplication!');
+        } else {
+          print('✅ Zone count stable after exit: $zoneCountAfter zones');
+        }
+      } catch (e) {
+        print('⚠️ Could not get zone count after exit: $e');
+      }
+
+      print('📊 AFTER EXIT: No scan-area should be triggered from here');
+
       return response.data;
     } on DioException catch (e) {
       print('❌ Exit zone error: ${e.response?.data}');
@@ -127,9 +252,12 @@ class ZoneService {
     }
   }
 
+  // ✅ ENHANCED: scanZone with debugging
   Future<Map<String, dynamic>> scanZone(String zoneId) async {
     try {
-      print('🔍 Scanning zone: $zoneId');
+      print('🔍 SCAN ZONE: Scanning existing zone: $zoneId');
+      print('⏰ Timestamp: ${DateTime.now().toIso8601String()}');
+      print('📊 This should NOT create new zones');
 
       final response = await _dio.get('/game/zones/$zoneId/scan');
 
@@ -144,10 +272,11 @@ class ZoneService {
     }
   }
 
-  // ✅ NEW: Enhanced method for detector screen
+  // ✅ ENHANCED: getZoneArtifacts with debugging
   Future<Map<String, dynamic>> getZoneArtifacts(String zoneId) async {
     try {
-      print('🔍🎯 Getting zone artifacts for detector: $zoneId');
+      print('🔍🎯 GET ZONE ARTIFACTS: Loading from existing zone: $zoneId');
+      print('⏰ Timestamp: ${DateTime.now().toIso8601String()}');
 
       // Use existing scanZone method - it returns exactly what we need!
       final scanResult = await scanZone(zoneId);
@@ -198,7 +327,78 @@ class ZoneService {
     }
   }
 
-  // ✅ NEW: Distance calculation using Haversine formula
+  // ✅ ENHANCED: collectItem with debugging
+  Future<Map<String, dynamic>> collectItem(
+      String zoneId, String itemType, String itemId) async {
+    try {
+      print('🎯💎 COLLECT ITEM: Starting collection');
+      print('🎯💎 - Zone: $zoneId');
+      print('🎯💎 - Item Type: $itemType');
+      print('🎯💎 - Item ID: $itemId');
+      print('⏰ Timestamp: ${DateTime.now().toIso8601String()}');
+
+      // ✅ Get zone count before collection
+      int zoneCountBefore = 0;
+      try {
+        final nearbyResponse = await _dio.get('/game/zones/nearby',
+            queryParameters: {'lat': 48.1486, 'lng': 17.1077, 'radius': 10000});
+        zoneCountBefore = (nearbyResponse.data['zones'] as List?)?.length ?? 0;
+        print('📊 BEFORE COLLECTION: $zoneCountBefore zones nearby');
+      } catch (e) {
+        print('⚠️ Could not get zone count before collection: $e');
+      }
+
+      final response = await _dio.post(
+        '/game/zones/$zoneId/collect',
+        data: {
+          'item_type': itemType,
+          'item_id': itemId,
+        },
+      );
+
+      print('✅💎 Collection API successful: ${response.data}');
+
+      // ✅ Get zone count after collection
+      try {
+        final nearbyResponse = await _dio.get('/game/zones/nearby',
+            queryParameters: {'lat': 48.1486, 'lng': 17.1077, 'radius': 10000});
+        final zoneCountAfter =
+            (nearbyResponse.data['zones'] as List?)?.length ?? 0;
+        print('📊 AFTER COLLECTION: $zoneCountAfter zones nearby');
+
+        if (zoneCountAfter > zoneCountBefore) {
+          print(
+              '🚨 ZONE INCREASE ON COLLECTION: +${zoneCountAfter - zoneCountBefore} zones created');
+        } else {
+          print('✅ Zone count stable after collection: $zoneCountAfter zones');
+        }
+      } catch (e) {
+        print('⚠️ Could not get zone count after collection: $e');
+      }
+
+      return response.data;
+    } on DioException catch (e) {
+      print('❌💎 Collection error: ${e.response?.data}');
+
+      if (e.response?.statusCode == 400) {
+        final errorMsg = e.response?.data?['error'] ?? 'Collection failed';
+        throw Exception(errorMsg);
+      } else if (e.response?.statusCode == 403) {
+        throw Exception(
+            'Cannot collect this item. Check your tier level or proximity.');
+      } else if (e.response?.statusCode == 404) {
+        throw Exception('Item not found or already collected.');
+      } else {
+        throw Exception(
+            'Failed to collect item: ${e.response?.data?['error'] ?? e.message}');
+      }
+    } catch (e) {
+      print('❌💎 Unexpected collection error: $e');
+      throw Exception('Unexpected error occurred while collecting item');
+    }
+  }
+
+  // Distance calculation using Haversine formula
   double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     const double earthRadiusMeters = 6371000; // Earth's radius in meters
 
@@ -217,7 +417,7 @@ class ZoneService {
     return earthRadiusMeters * c; // Distance in meters
   }
 
-  // ✅ NEW: Calculate bearing between two points (for direction)
+  // Calculate bearing between two points (for direction)
   double calculateBearing(double lat1, double lon1, double lat2, double lon2) {
     final double dLon = _toRadians(lon2 - lon1);
     final double lat1Rad = _toRadians(lat1);
@@ -234,7 +434,7 @@ class ZoneService {
     return (bearingDeg + 360) % 360;
   }
 
-  // ✅ NEW: Convert bearing to compass direction
+  // Convert bearing to compass direction
   String bearingToCompass(double bearing) {
     const List<String> directions = [
       'N',
@@ -259,7 +459,7 @@ class ZoneService {
     return directions[index];
   }
 
-  // ✅ NEW: Get simple compass direction (N, NE, E, SE, S, SW, W, NW)
+  // Get simple compass direction (N, NE, E, SE, S, SW, W, NW)
   String bearingToSimpleCompass(double bearing) {
     const List<String> directions = [
       'N',
@@ -275,7 +475,7 @@ class ZoneService {
     return directions[index];
   }
 
-  // ✅ NEW: Calculate signal strength based on distance and detector properties
+  // Calculate signal strength based on distance and detector properties
   double calculateSignalStrength(
     double distanceMeters, {
     double maxRangeMeters = 500.0,
@@ -312,7 +512,7 @@ class ZoneService {
     return (baseStrength * rarityMultiplier).clamp(0.0, 1.0);
   }
 
-  // ✅ NEW: Format distance for display
+  // Format distance for display
   String formatDistance(double distanceMeters) {
     if (distanceMeters < 1.0) {
       return '${(distanceMeters * 100).toInt()}cm';
@@ -323,44 +523,7 @@ class ZoneService {
     }
   }
 
-  // ✅ NEW: Collection method for detector
-  Future<Map<String, dynamic>> collectItem(
-      String zoneId, String itemType, String itemId) async {
-    try {
-      print('🎯💎 Collecting $itemType: $itemId from zone: $zoneId');
-
-      final response = await _dio.post(
-        '/game/zones/$zoneId/collect',
-        data: {
-          'item_type': itemType,
-          'item_id': itemId,
-        },
-      );
-
-      print('✅💎 Collection successful: ${response.data}');
-      return response.data;
-    } on DioException catch (e) {
-      print('❌💎 Collection error: ${e.response?.data}');
-
-      if (e.response?.statusCode == 400) {
-        final errorMsg = e.response?.data?['error'] ?? 'Collection failed';
-        throw Exception(errorMsg);
-      } else if (e.response?.statusCode == 403) {
-        throw Exception(
-            'Cannot collect this item. Check your tier level or proximity.');
-      } else if (e.response?.statusCode == 404) {
-        throw Exception('Item not found or already collected.');
-      } else {
-        throw Exception(
-            'Failed to collect item: ${e.response?.data?['error'] ?? e.message}');
-      }
-    } catch (e) {
-      print('❌💎 Unexpected collection error: $e');
-      throw Exception('Unexpected error occurred while collecting item');
-    }
-  }
-
-  // ✅ Helper method pre debugging
+  // Helper method for debugging
   Future<bool> testBackendConnection() async {
     try {
       final response = await _dio.get('/test');
@@ -371,7 +534,7 @@ class ZoneService {
     }
   }
 
-  // ✅ Private helper methods
+  // Private helper methods
   double _toRadians(double degrees) => degrees * math.pi / 180.0;
   double _toDegrees(double radians) => radians * 180.0 / math.pi;
 }

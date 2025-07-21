@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
-import '../models/zone_model.dart';
-import '../models/scan_result_model.dart'; // ✅ FIX: Pridaj import
+import '../../../core/models/zone_model.dart';
+import '../models/scan_result_model.dart' as scan; // ✅ FIX: Pridaj import
 
 class ZoneInfoCard extends StatelessWidget {
   final Zone zone;
-  final ZoneWithDetails? zoneDetails; // ✅ FIX: Pridaj optional zoneDetails
+  final scan.ZoneWithDetails? zoneDetails; // ✅ FIX: Pridaj optional zoneDetails
   final VoidCallback onEnterZone;
   final VoidCallback onNavigateToZone;
 
@@ -83,9 +83,9 @@ class ZoneInfoCard extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // Zone description
-                  if (zone.description.isNotEmpty)
+                  if (zone.description != null && zone.description!.isNotEmpty)
                     Text(
-                      zone.description,
+                      zone.description!,
                       style: GameTextStyles.clockLabel.copyWith(
                         fontSize: 14,
                         color: Colors.grey[300],
@@ -137,7 +137,8 @@ class ZoneInfoCard extends StatelessWidget {
                     _buildInfoItem('Tier Required', zone.tierName, Icons.star),
               ),
               Expanded(
-                child: _buildInfoItem('Biome', zone.biome, Icons.terrain),
+                child: _buildInfoItem(
+                    'Biome', zone.biome ?? 'Unknown', Icons.terrain),
               ),
             ],
           ),
@@ -145,8 +146,8 @@ class ZoneInfoCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child:
-                    _buildInfoItem('Danger', zone.dangerLevel, Icons.warning),
+                child: _buildInfoItem(
+                    'Danger', zone.dangerLevel ?? 'Unknown', Icons.warning),
               ),
               Expanded(
                 child: _buildInfoItem(
@@ -300,7 +301,8 @@ class ZoneInfoCard extends StatelessWidget {
 
   Widget _buildTTLInfo() {
     // ✅ FIX: Use ZoneWithDetails expiry if available, otherwise zone expiry
-    DateTime? expiresAt = zone.expiresAt;
+    DateTime? expiresAt =
+        zone.expiresAt != null ? DateTime.tryParse(zone.expiresAt!) : null;
     if (zoneDetails != null && !zoneDetails!.isExpired) {
       expiresAt = zoneDetails!.expiryDateTime;
     }

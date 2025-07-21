@@ -6,8 +6,8 @@ import '../../../core/theme/app_theme.dart';
 import '../services/location_service.dart';
 import '../services/zone_service.dart';
 import '../models/location_model.dart';
-import '../models/zone_model.dart';
-import '../models/scan_result_model.dart';
+import '../../../core/models/zone_model.dart';
+import '../models/scan_result_model.dart' as ScanModels;
 import '../widgets/zone_info_card.dart';
 import '../widgets/scan_button.dart';
 
@@ -22,8 +22,8 @@ class _MapScreenState extends State<MapScreen> {
   final MapController _mapController = MapController();
   LocationModel? _currentLocation;
   List<Marker> _markers = [];
-  List<ZoneWithDetails> _zones = []; // ✅ FIX: ZoneWithDetails namiesto Zone
-  ScanResultModel? _lastScanResult;
+  List<ScanModels.ZoneWithDetails> _zones = []; // ✅ ZoneWithDetails list
+  ScanModels.ScanResultModel? _lastScanResult;
   bool _isLoading = false;
   bool _isScanning = false;
 
@@ -83,7 +83,7 @@ class _MapScreenState extends State<MapScreen> {
 
       setState(() {
         _lastScanResult = scanResult;
-        _zones = scanResult.zones; // ✅ FIX: Použiť ZoneWithDetails
+        _zones = scanResult.zones; // ✅ Use ZoneWithDetails
         _markers = _createZoneMarkers(scanResult.zones);
         _isScanning = false;
       });
@@ -98,17 +98,16 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  List<Marker> _createZoneMarkers(List<ZoneWithDetails> zones) {
-    // ✅ FIX: ZoneWithDetails parameter
+  List<Marker> _createZoneMarkers(List<ScanModels.ZoneWithDetails> zones) {
     return zones.map((zoneWithDetails) {
-      final zone = zoneWithDetails.zone; // ✅ FIX: Extrahuj zone object
+      final zone = zoneWithDetails.zone; // ✅ Extract zone object
       return Marker(
         point: LatLng(zone.location.latitude, zone.location.longitude),
         width: 50,
         height: 50,
         child: GestureDetector(
           onTap: () =>
-              _showZoneDetails(zoneWithDetails), // ✅ FIX: Pošli ZoneWithDetails
+              _showZoneDetails(zoneWithDetails), // ✅ Pass ZoneWithDetails
           child: Container(
             decoration: BoxDecoration(
               color: _getMarkerColor(zone.tierRequired),
@@ -164,18 +163,17 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  void _showZoneDetails(ZoneWithDetails zoneWithDetails) {
-    // ✅ FIX: ZoneWithDetails parameter
+  void _showZoneDetails(ScanModels.ZoneWithDetails zoneWithDetails) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => ZoneInfoCard(
-        zone: zoneWithDetails.zone, // ✅ FIX: Extrahuj zone object
-        zoneDetails:
-            zoneWithDetails, // ✅ FIX: Pošli aj ZoneWithDetails pre extra info
+        zone: zoneWithDetails.zone, // ✅ Extract zone object
+        zoneDetails: zoneWithDetails, // ✅ Pass ZoneWithDetails for extra info
         onEnterZone: () => _enterZone(zoneWithDetails.zone),
-        onNavigateToZone: () => _navigateToZone(zoneWithDetails.zone),
+        onNavigateToZone: () =>
+            _navigateToZone(zoneWithDetails.zone), // ✅ FIXED: Pass zone data
       ),
     );
   }
@@ -195,7 +193,8 @@ class _MapScreenState extends State<MapScreen> {
 
       if (mounted) {
         _showSuccessSnackBar('Successfully entered ${zone.name}!');
-        context.go('/zone/${zone.id}');
+        // ✅ FIXED: Pass zone data to detail screen
+        context.push('/zone/${zone.id}', extra: zone);
       }
     } catch (e) {
       setState(() {
@@ -207,7 +206,10 @@ class _MapScreenState extends State<MapScreen> {
 
   void _navigateToZone(Zone zone) {
     Navigator.pop(context);
-    context.go('/zone/${zone.id}');
+    // ✅ FIXED: Pass zone data to detail screen
+    print(
+        '🗺️ Navigating to zone: ${zone.name} at ${zone.location.latitude.toStringAsFixed(6)}, ${zone.location.longitude.toStringAsFixed(6)}');
+    context.push('/zone/${zone.id}', extra: zone);
   }
 
   void _showErrorSnackBar(String message) {

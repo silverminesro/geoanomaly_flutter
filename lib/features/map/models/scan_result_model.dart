@@ -1,4 +1,4 @@
-import 'zone_model.dart';
+import '../../../core/models/zone_model.dart';
 import 'location_model.dart';
 
 class ScanResultModel {

@@ -5,12 +5,13 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/map/screens/map_screen.dart';
 import '../../features/map/screens/zone_detail_screen.dart';
-import '../../features/map/screens/detector_screen.dart'; // ✅ PRIDANÉ
-import '../../features/map/models/detector_model.dart'; // ✅ PRIDANÉ
+import '../../features/detector/detector_screen.dart';
+import '../../features/detector/models/detector_model.dart';
 import '../../features/inventory/screens/inventory_screen.dart';
-import '../../features/inventory/screens/inventory_detail_screen.dart';
 import '../../features/inventory/models/inventory_item_model.dart';
+import '../../core/models/zone_model.dart'; // ✅ PRIDANÉ pre Zone type
 import '../theme/app_theme.dart';
+import '../../features/inventory/screens/enhanced_inventory_detail_screen.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/splash',
@@ -39,17 +40,22 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const MapScreen(),
     ),
 
-    // ✅ Zone detail route
+    // ✅ FIXED: Zone detail route - supports zone data passing
     GoRoute(
       path: '/zone/:id',
       name: 'zone_detail',
       builder: (context, state) {
         final zoneId = state.pathParameters['id']!;
-        return ZoneDetailScreen(zoneId: zoneId);
+        final Zone? zoneData = state.extra as Zone?; // ✅ Get zone data from map
+
+        return ZoneDetailScreen(
+          zoneId: zoneId,
+          zoneData: zoneData, // ✅ Pass zone data
+        );
       },
     ),
 
-    // ✅ NOVÉ: Detector screen route
+    // ✅ Detector screen route
     GoRoute(
       path: '/zone/:zoneId/detector',
       name: 'detector',
@@ -71,7 +77,7 @@ final GoRouter appRouter = GoRouter(
       name: 'inventory_detail',
       builder: (context, state) {
         final item = state.extra as InventoryItem;
-        return InventoryDetailScreen(item: item);
+        return EnhancedInventoryDetailScreen(item: item);
       },
     ),
 
