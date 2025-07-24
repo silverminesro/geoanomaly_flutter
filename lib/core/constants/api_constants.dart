@@ -16,6 +16,19 @@ class ApiConstants {
 
   // User endpoints
   static const String profile = '/user/profile';
-  static const String inventory = '/user/inventory';
   static const String updateLocation = '/user/location';
+
+  // ✅ OPRAV INVENTORY ENDPOINTS:
+  static const String inventoryItems = '/inventory/items'; // Pre zoznam items
+  static const String inventorySummary = '/inventory/summary'; // Pre summary
+
+  // ✅ ALEBO POUŽI USER ENDPOINT AK BACKEND MÁ:
+  // static const String userInventory = '/user/inventory';       // Ak backend má tento endpoint
+
+  // ✅ Profile endpoints
+  static const String userProfile = '/user/profile';
+  static const String userStats = '/user/stats';
+
+  // ✅ Auth profile endpoints (alternative)
+  static const String authProfile = '/auth/profile';
 }

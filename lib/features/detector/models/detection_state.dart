@@ -1,7 +1,6 @@
 // lib/features/detector/models/detection_state.dart
 import 'package:equatable/equatable.dart';
 import '../../map/models/location_model.dart';
-import 'detector_model.dart';
 import 'artifact_model.dart';
 
 class DetectionState extends Equatable {

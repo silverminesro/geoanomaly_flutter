@@ -12,7 +12,9 @@ import '../widgets/zone_info_card.dart';
 import '../widgets/scan_button.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final Map<String, dynamic>? extras;
+
+  const MapScreen({super.key, this.extras});
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -22,7 +24,7 @@ class _MapScreenState extends State<MapScreen> {
   final MapController _mapController = MapController();
   LocationModel? _currentLocation;
   List<Marker> _markers = [];
-  List<ScanModels.ZoneWithDetails> _zones = []; // ✅ ZoneWithDetails list
+  List<ScanModels.ZoneWithDetails> _zones = [];
   ScanModels.ScanResultModel? _lastScanResult;
   bool _isLoading = false;
   bool _isScanning = false;
@@ -33,6 +35,129 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _initializeLocation();
+    _handleExtras();
+  }
+
+  void _handleExtras() {
+    if (widget.extras != null) {
+      final extras = widget.extras!;
+
+      // Handle discovery location navigation
+      if (extras.containsKey('center_location')) {
+        final location = extras['center_location'] as Location;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _mapController.move(
+            LatLng(location.latitude, location.longitude),
+            17.0, // Closer zoom for discovery location
+          );
+
+          // Show discovery marker if requested
+          if (extras['show_discovery_marker'] == true) {
+            _addDiscoveryMarker(location, extras['discovery_item_name']);
+          }
+        });
+      }
+    }
+  }
+
+  void _addDiscoveryMarker(Location location, String? itemName) {
+    final discoveryMarker = Marker(
+      point: LatLng(location.latitude, location.longitude),
+      width: 60,
+      height: 60,
+      child: GestureDetector(
+        onTap: () => _showDiscoveryInfo(location, itemName),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.purple,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.purple.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.location_history,
+                color: Colors.white,
+                size: 20,
+              ),
+              Text(
+                'FOUND',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 8,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    setState(() {
+      _markers = [..._markers, discoveryMarker];
+    });
+  }
+
+  void _showDiscoveryInfo(Location location, String? itemName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardColor,
+        title: Row(
+          children: [
+            Icon(Icons.location_history, color: Colors.purple),
+            const SizedBox(width: 8),
+            Text(
+              'Discovery Location',
+              style: GameTextStyles.clockTime.copyWith(fontSize: 18),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (itemName != null) ...[
+              Text(
+                'Item: $itemName',
+                style: GameTextStyles.cardTitle,
+              ),
+              const SizedBox(height: 8),
+            ],
+            Text(
+              'Coordinates:',
+              style: GameTextStyles.clockLabel,
+            ),
+            Text(
+              '${location.latitude.toStringAsFixed(6)}, ${location.longitude.toStringAsFixed(6)}',
+              style: GameTextStyles.cardTitle.copyWith(fontSize: 14),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.go('/inventory');
+            },
+            child: const Text('View Inventory'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _initializeLocation() async {
@@ -47,11 +172,13 @@ class _MapScreenState extends State<MapScreen> {
         _isLoading = false;
       });
 
-      // Move camera to current location
-      _mapController.move(
-        LatLng(location.latitude, location.longitude),
-        15.0,
-      );
+      // Move camera to current location only if no extras location is provided
+      if (widget.extras?['center_location'] == null) {
+        _mapController.move(
+          LatLng(location.latitude, location.longitude),
+          15.0,
+        );
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -83,7 +210,7 @@ class _MapScreenState extends State<MapScreen> {
 
       setState(() {
         _lastScanResult = scanResult;
-        _zones = scanResult.zones; // ✅ Use ZoneWithDetails
+        _zones = scanResult.zones;
         _markers = _createZoneMarkers(scanResult.zones);
         _isScanning = false;
       });
@@ -99,51 +226,57 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   List<Marker> _createZoneMarkers(List<ScanModels.ZoneWithDetails> zones) {
-    return zones.map((zoneWithDetails) {
-      final zone = zoneWithDetails.zone; // ✅ Extract zone object
-      return Marker(
-        point: LatLng(zone.location.latitude, zone.location.longitude),
-        width: 50,
-        height: 50,
-        child: GestureDetector(
-          onTap: () =>
-              _showZoneDetails(zoneWithDetails), // ✅ Pass ZoneWithDetails
-          child: Container(
-            decoration: BoxDecoration(
-              color: _getMarkerColor(zone.tierRequired),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    zone.biomeEmoji,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  Text(
-                    'T${zone.tierRequired}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 8,
-                    ),
+    List<Marker> markers = [];
+
+    // Add zone markers
+    for (final zoneWithDetails in zones) {
+      final zone = zoneWithDetails.zone;
+      markers.add(
+        Marker(
+          point: LatLng(zone.location.latitude, zone.location.longitude),
+          width: 50,
+          height: 50,
+          child: GestureDetector(
+            onTap: () => _showZoneDetails(zoneWithDetails),
+            child: Container(
+              decoration: BoxDecoration(
+                color: _getMarkerColor(zone.tierRequired),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
                   ),
                 ],
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      zone.biomeEmoji,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    Text(
+                      'T${zone.tierRequired}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 8,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       );
-    }).toList();
+    }
+
+    return markers;
   }
 
   Color _getMarkerColor(int tier) {
@@ -169,11 +302,10 @@ class _MapScreenState extends State<MapScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => ZoneInfoCard(
-        zone: zoneWithDetails.zone, // ✅ Extract zone object
-        zoneDetails: zoneWithDetails, // ✅ Pass ZoneWithDetails for extra info
+        zone: zoneWithDetails.zone,
+        zoneDetails: zoneWithDetails,
         onEnterZone: () => _enterZone(zoneWithDetails.zone),
-        onNavigateToZone: () =>
-            _navigateToZone(zoneWithDetails.zone), // ✅ FIXED: Pass zone data
+        onNavigateToZone: () => _navigateToZone(zoneWithDetails.zone),
       ),
     );
   }
@@ -193,7 +325,6 @@ class _MapScreenState extends State<MapScreen> {
 
       if (mounted) {
         _showSuccessSnackBar('Successfully entered ${zone.name}!');
-        // ✅ FIXED: Pass zone data to detail screen
         context.push('/zone/${zone.id}', extra: zone);
       }
     } catch (e) {
@@ -206,9 +337,7 @@ class _MapScreenState extends State<MapScreen> {
 
   void _navigateToZone(Zone zone) {
     Navigator.pop(context);
-    // ✅ FIXED: Pass zone data to detail screen
-    print(
-        '🗺️ Navigating to zone: ${zone.name} at ${zone.location.latitude.toStringAsFixed(6)}, ${zone.location.longitude.toStringAsFixed(6)}');
+    print('🗺️ Navigating to zone: ${zone.name}');
     context.push('/zone/${zone.id}', extra: zone);
   }
 
@@ -270,32 +399,22 @@ class _MapScreenState extends State<MapScreen> {
               minZoom: 3.0,
               maxZoom: 18.0,
               onTap: (tapPosition, point) {
-                // Hide any open bottom sheets
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
             ),
             children: [
-              // 🌍 OpenStreetMap tiles
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.geoanomaly.app',
                 maxNativeZoom: 18,
               ),
-
-              // 📍 Zone markers
-              MarkerLayer(
-                markers: _markers,
-              ),
-
-              // 📍 Current location marker
+              MarkerLayer(markers: _markers),
               if (_currentLocation != null)
                 MarkerLayer(
                   markers: [
                     Marker(
-                      point: LatLng(
-                        _currentLocation!.latitude,
-                        _currentLocation!.longitude,
-                      ),
+                      point: LatLng(_currentLocation!.latitude,
+                          _currentLocation!.longitude),
                       width: 20,
                       height: 20,
                       child: Container(
@@ -305,17 +424,14 @@ class _MapScreenState extends State<MapScreen> {
                           border: Border.all(color: Colors.white, width: 3),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.3),
+                              color: Colors.black.withOpacity(0.3),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 12,
-                        ),
+                        child: const Icon(Icons.person,
+                            color: Colors.white, size: 12),
                       ),
                     ),
                   ],
@@ -326,11 +442,9 @@ class _MapScreenState extends State<MapScreen> {
           // Loading overlay
           if (_isLoading)
             Container(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Colors.black.withOpacity(0.3),
               child: Center(
-                child: CircularProgressIndicator(
-                  color: AppTheme.primaryColor,
-                ),
+                child: CircularProgressIndicator(color: AppTheme.primaryColor),
               ),
             ),
 
@@ -359,19 +473,13 @@ class _MapScreenState extends State<MapScreen> {
                   setState(() {
                     _currentLocation = location;
                   });
-
                   _mapController.move(
-                    LatLng(location.latitude, location.longitude),
-                    15.0,
-                  );
+                      LatLng(location.latitude, location.longitude), 15.0);
                 } catch (e) {
                   _showErrorSnackBar('Error getting location: $e');
                 }
               },
-              child: Icon(
-                Icons.my_location,
-                color: AppTheme.primaryColor,
-              ),
+              child: Icon(Icons.my_location, color: AppTheme.primaryColor),
             ),
           ),
 
@@ -384,7 +492,7 @@ class _MapScreenState extends State<MapScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.7),
+                  color: Colors.black.withOpacity(0.7),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(

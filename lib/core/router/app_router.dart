@@ -8,15 +8,16 @@ import '../../features/map/screens/zone_detail_screen.dart';
 import '../../features/detector/detector_screen.dart';
 import '../../features/detector/models/detector_model.dart';
 import '../../features/inventory/screens/inventory_screen.dart';
-import '../../features/inventory/models/inventory_item_model.dart';
-import '../../core/models/zone_model.dart'; // ✅ PRIDANÉ pre Zone type
-import '../theme/app_theme.dart';
 import '../../features/inventory/screens/enhanced_inventory_detail_screen.dart';
+import '../../features/inventory/models/inventory_item_model.dart';
+import '../../features/profile/screens/profile_screen.dart'; // ✅ NOVÝ IMPORT
+import '../../core/models/zone_model.dart';
+import '../theme/app_theme.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/splash',
   routes: [
-    // ✅ Auth routes
+    // 🔐 Auth routes
     GoRoute(
       path: '/splash',
       name: 'splash',
@@ -33,29 +34,32 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const RegisterScreen(),
     ),
 
-    // ✅ Map routes
+    // 🗺️ Map routes
     GoRoute(
       path: '/map',
       name: 'map',
-      builder: (context, state) => const MapScreen(),
+      builder: (context, state) {
+        // ✅ FIXED: MapScreen doesn't take extras parameter
+        return const MapScreen();
+      },
     ),
 
-    // ✅ FIXED: Zone detail route - supports zone data passing
+    // 🎯 Zone detail route
     GoRoute(
       path: '/zone/:id',
       name: 'zone_detail',
       builder: (context, state) {
         final zoneId = state.pathParameters['id']!;
-        final Zone? zoneData = state.extra as Zone?; // ✅ Get zone data from map
+        final Zone? zoneData = state.extra as Zone?;
 
         return ZoneDetailScreen(
           zoneId: zoneId,
-          zoneData: zoneData, // ✅ Pass zone data
+          zoneData: zoneData,
         );
       },
     ),
 
-    // ✅ Detector screen route
+    // 🔍 Detector screen route
     GoRoute(
       path: '/zone/:zoneId/detector',
       name: 'detector',
@@ -66,12 +70,14 @@ final GoRouter appRouter = GoRouter(
       },
     ),
 
-    // ✅ Inventory routes
+    // 🎒 Inventory routes
     GoRoute(
       path: '/inventory',
       name: 'inventory',
       builder: (context, state) => const InventoryScreen(),
     ),
+
+    // 💎 Inventory item detail route - ✅ FIXED parameter name
     GoRoute(
       path: '/inventory/detail',
       name: 'inventory_detail',
@@ -81,79 +87,88 @@ final GoRouter appRouter = GoRouter(
       },
     ),
 
-    // ✅ Profile routes (placeholder)
+    // 👤 Profile route - ✅ UPDATED: Real ProfileScreen instead of placeholder
     GoRoute(
       path: '/profile',
       name: 'profile',
-      builder: (context, state) => Scaffold(
-        appBar: AppBar(
-          title: Text(
-            'Profile',
-            style: GameTextStyles.clockTime.copyWith(
-              fontSize: 20,
-              color: Colors.white,
-            ),
-          ),
-          backgroundColor: AppTheme.primaryColor,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Profile Screen',
-                style: GameTextStyles.clockTime,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () => context.go('/map'),
-                child: const Text('Back to Map'),
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: () => context.go('/inventory'),
-                child: const Text('View Inventory'),
-              ),
-            ],
-          ),
-        ),
-      ),
+      builder: (context, state) => const ProfileScreen(),
     ),
 
-    // ✅ Scanner routes (placeholder)
+    // 🔍 Zone scanner route
     GoRoute(
       path: '/scanner',
       name: 'scanner',
-      builder: (context, state) => Scaffold(
-        appBar: AppBar(
-          title: Text(
-            'Zone Scanner',
-            style: GameTextStyles.clockTime.copyWith(
-              fontSize: 20,
-              color: Colors.white,
-            ),
-          ),
-          backgroundColor: AppTheme.primaryColor,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Scanning for zones...',
-                style: GameTextStyles.clockTime,
-              ),
-              const SizedBox(height: 20),
-              const CircularProgressIndicator(),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () => context.go('/map'),
-                child: const Text('Back to Map'),
-              ),
-            ],
-          ),
-        ),
-      ),
+      builder: (context, state) => _buildScannerPlaceholder(context),
     ),
   ],
 );
+
+// Helper method for scanner placeholder (profile placeholder removed)
+Widget _buildScannerPlaceholder(BuildContext context) {
+  return Scaffold(
+    backgroundColor: AppTheme.backgroundColor,
+    appBar: AppBar(
+      title: Text(
+        'Zone Scanner',
+        style: GameTextStyles.clockTime.copyWith(
+          fontSize: 20,
+          color: Colors.white,
+        ),
+      ),
+      backgroundColor: AppTheme.primaryColor,
+      elevation: 0,
+    ),
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.radar,
+              size: 80,
+              color: AppTheme.primaryColor,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Zone Scanner',
+              style: GameTextStyles.header,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Advanced scanning features coming soon!',
+              style: GameTextStyles.clockLabel,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+
+            // Animated scanning indicator
+            SizedBox(
+              width: 60,
+              height: 60,
+              child: CircularProgressIndicator(
+                color: AppTheme.primaryColor,
+                strokeWidth: 3,
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.go('/map'),
+                icon: const Icon(Icons.map),
+                label: const Text('Back to Map'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
