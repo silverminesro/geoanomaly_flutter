@@ -214,8 +214,7 @@ class InventoryService {
       print('💎 Loading artifact details: $artifactId');
 
       // ✅ FIXED: Use proper endpoint structure
-      final response =
-          await _dio.get('/api/v1/game/items/artifacts/$artifactId');
+      final response = await _dio.get('/game/items/artifacts/$artifactId');
 
       print('✅ Artifact details response: ${response.statusCode}');
 
@@ -249,7 +248,7 @@ class InventoryService {
       print('⚔️ Loading gear details: $gearId');
 
       // ✅ FIXED: Use proper endpoint structure
-      final response = await _dio.get('/api/v1/game/items/gear/$gearId');
+      final response = await _dio.get('/game/items/gear/$gearId');
 
       print('✅ Gear details response: ${response.statusCode}');
 
