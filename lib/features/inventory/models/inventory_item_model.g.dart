@@ -28,6 +28,11 @@ InventoryItem _$InventoryItemFromJson(Map<String, dynamic> json) =>
           ? null
           : DateTime.parse(json['location_timestamp'] as String),
       isFavorite: json['is_favorite'] as bool? ?? false,
+      imageUrl: json['image_url'] as String?,
+      mediaIds: (json['media_ids'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
     );
 
 Map<String, dynamic> _$InventoryItemToJson(InventoryItem instance) =>
@@ -43,4 +48,6 @@ Map<String, dynamic> _$InventoryItemToJson(InventoryItem instance) =>
       'discovery_location': instance.discoveryLocation,
       'location_timestamp': instance.locationTimestamp?.toIso8601String(),
       'is_favorite': instance.isFavorite,
+      'image_url': instance.imageUrl,
+      'media_ids': instance.mediaIds,
     };

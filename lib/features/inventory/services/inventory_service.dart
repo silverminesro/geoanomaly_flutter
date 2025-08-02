@@ -208,32 +208,38 @@ class InventoryService {
     };
   }
 
-  // Get detailed artifact information
+  // ✅ FIXED: Get detailed artifact information with proper response handling
   Future<ArtifactItem> getArtifactDetails(String artifactId) async {
     try {
       print('💎 Loading artifact details: $artifactId');
 
-      // ✅ FIXED: Use proper endpoint structure
-      final response = await _dio.get('/game/items/artifacts/$artifactId');
+      final response =
+          await _dio.get('${ApiConstants.inventoryItems}/$artifactId');
 
       print('✅ Artifact details response: ${response.statusCode}');
 
-      // ✅ ENHANCED: Handle response format
-      Map<String, dynamic> artifactData;
+      // ✅ FIXED: Handle response format from GetItemDetail
+      Map<String, dynamic> itemData;
       if (response.data is Map) {
         final data = response.data as Map<String, dynamic>;
-        artifactData = data.containsKey('artifact') ? data['artifact'] : data;
+
+        // Backend returns {success: true, item: {...}}
+        if (data.containsKey('item')) {
+          itemData = data['item'] as Map<String, dynamic>;
+          print('✅ Found item in response');
+        } else {
+          throw Exception('Invalid response format - missing item');
+        }
       } else {
         throw Exception('Invalid artifact response format');
       }
 
-      return ArtifactItem.fromJson(artifactData);
+      // Create ArtifactItem from the inventory item data
+      return ArtifactItem.fromInventoryItem(itemData);
     } on DioException catch (e) {
       print('❌ Artifact details error: ${e.response?.data}');
       if (e.response?.statusCode == 404) {
         throw Exception('Artifact not found');
-      } else if (e.response?.statusCode == 501) {
-        throw Exception('Artifact details not implemented yet');
       }
       throw Exception(_handleDioError(e, 'Failed to load artifact details'));
     } catch (e) {
@@ -242,32 +248,37 @@ class InventoryService {
     }
   }
 
-  // Get detailed gear information
+  // ✅ FIXED: Get detailed gear information with proper response handling
   Future<GearItem> getGearDetails(String gearId) async {
     try {
       print('⚔️ Loading gear details: $gearId');
 
-      // ✅ FIXED: Use proper endpoint structure
-      final response = await _dio.get('/game/items/gear/$gearId');
+      final response = await _dio.get('${ApiConstants.inventoryItems}/$gearId');
 
       print('✅ Gear details response: ${response.statusCode}');
 
-      // ✅ ENHANCED: Handle response format
-      Map<String, dynamic> gearData;
+      // ✅ FIXED: Handle response format from GetItemDetail
+      Map<String, dynamic> itemData;
       if (response.data is Map) {
         final data = response.data as Map<String, dynamic>;
-        gearData = data.containsKey('gear') ? data['gear'] : data;
+
+        // Backend returns {success: true, item: {...}}
+        if (data.containsKey('item')) {
+          itemData = data['item'] as Map<String, dynamic>;
+          print('✅ Found item in response');
+        } else {
+          throw Exception('Invalid response format - missing item');
+        }
       } else {
         throw Exception('Invalid gear response format');
       }
 
-      return GearItem.fromJson(gearData);
+      // Create GearItem from the inventory item data
+      return GearItem.fromInventoryItem(itemData);
     } on DioException catch (e) {
       print('❌ Gear details error: ${e.response?.data}');
       if (e.response?.statusCode == 404) {
         throw Exception('Gear not found');
-      } else if (e.response?.statusCode == 501) {
-        throw Exception('Gear details not implemented yet');
       }
       throw Exception(_handleDioError(e, 'Failed to load gear details'));
     } catch (e) {

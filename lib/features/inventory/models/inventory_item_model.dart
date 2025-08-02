@@ -42,6 +42,14 @@ class InventoryItem extends Equatable {
   @JsonKey(name: 'is_favorite', defaultValue: false)
   final bool isFavorite;
 
+  // ✅ PRIDANÉ: imageUrl field
+  @JsonKey(name: 'image_url')
+  final String? imageUrl;
+
+  // ✅ NOVÉ: Media IDs z backendu
+  @JsonKey(name: 'media_ids', defaultValue: [])
+  final List<String> mediaIds;
+
   const InventoryItem({
     required this.id,
     required this.itemId,
@@ -54,6 +62,8 @@ class InventoryItem extends Equatable {
     this.discoveryLocation,
     this.locationTimestamp,
     this.isFavorite = false,
+    this.imageUrl,
+    this.mediaIds = const [], // ✅ PRIDANÉ
   });
 
   // ✅ FIXED: Enhanced JSON parser with detailed debug logging
@@ -173,6 +183,15 @@ class InventoryItem extends Equatable {
         final fallbackProperties = _parseProperties(json['properties']);
         print('🔧 Fallback properties: $fallbackProperties');
 
+        // ✅ Parse media_ids for fallback
+        List<String> fallbackMediaIds = [];
+        if (json['media_ids'] != null) {
+          if (json['media_ids'] is List) {
+            fallbackMediaIds =
+                (json['media_ids'] as List).map((e) => e.toString()).toList();
+          }
+        }
+
         final item = InventoryItem(
           id: json['id']?.toString() ?? '',
           itemId: json['item_id']?.toString() ?? '',
@@ -186,6 +205,8 @@ class InventoryItem extends Equatable {
           userId: json['user_id']?.toString(),
           properties: fallbackProperties,
           isFavorite: json['is_favorite'] as bool? ?? false,
+          imageUrl: json['image_url']?.toString(),
+          mediaIds: fallbackMediaIds, // ✅ PRIDANÉ
         );
 
         print('✅ Fallback item created: ${item.name}');
@@ -201,6 +222,8 @@ class InventoryItem extends Equatable {
           quantity: 1,
           createdAt: DateTime.now(),
           properties: {'name': 'Unknown Item', 'parsing_failed': true},
+          imageUrl: json['image_url']?.toString(),
+          mediaIds: const [], // ✅ PRIDANÉ
         );
       }
     }
@@ -333,6 +356,8 @@ class InventoryItem extends Equatable {
         discoveryLocation,
         locationTimestamp,
         isFavorite,
+        imageUrl,
+        mediaIds, // ✅ PRIDANÉ
       ];
 
   // Helper getters
@@ -488,6 +513,36 @@ class InventoryItem extends Equatable {
     }
   }
 
+  // ✅ UPDATE: computedImageUrl getter
+  String? get computedImageUrl {
+    print('🔍 DEBUG computedImageUrl - START');
+    print('🔍 DEBUG computedImageUrl - isArtifact: $isArtifact');
+    print('🔍 DEBUG computedImageUrl - itemType: $itemType');
+
+    // Pre artefakty použi /media/artifact/ endpoint
+    if (isArtifact) {
+      final artifactType = getProperty<String>('type');
+      print('🔍 DEBUG computedImageUrl - artifactType: $artifactType');
+      print(
+          '🔍 DEBUG computedImageUrl - properties keys: ${properties.keys.toList()}');
+
+      if (artifactType != null && artifactType.isNotEmpty) {
+        final url = '/media/artifact/$artifactType';
+        print('🔍 DEBUG computedImageUrl - returning URL: $url');
+        return url;
+      } else {
+        print('❌ DEBUG computedImageUrl - artifactType is null/empty');
+      }
+    } else {
+      print('❌ DEBUG computedImageUrl - not an artifact');
+    }
+
+    // TODO: Pre gear neskôr pridať /media/gear/ endpoint
+
+    print('🔍 DEBUG computedImageUrl - returning null');
+    return null;
+  }
+
   // Copy with method
   InventoryItem copyWith({
     String? id,
@@ -501,6 +556,8 @@ class InventoryItem extends Equatable {
     LocationModel? discoveryLocation,
     DateTime? locationTimestamp,
     bool? isFavorite,
+    String? imageUrl,
+    List<String>? mediaIds, // ✅ PRIDANÉ
   }) {
     return InventoryItem(
       id: id ?? this.id,
@@ -514,6 +571,8 @@ class InventoryItem extends Equatable {
       discoveryLocation: discoveryLocation ?? this.discoveryLocation,
       locationTimestamp: locationTimestamp ?? this.locationTimestamp,
       isFavorite: isFavorite ?? this.isFavorite,
+      imageUrl: imageUrl ?? this.imageUrl,
+      mediaIds: mediaIds ?? this.mediaIds, // ✅ PRIDANÉ
     );
   }
 

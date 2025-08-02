@@ -10,6 +10,7 @@ import '../models/artifact_item_model.dart';
 import '../models/gear_item_model.dart';
 import '../widgets/rarity_badge.dart';
 import '../../map/models/location_model.dart';
+import '../widgets/network_image_widget.dart';
 
 class EnhancedInventoryDetailScreen extends ConsumerStatefulWidget {
   final InventoryItem item;
@@ -144,49 +145,67 @@ class _EnhancedInventoryDetailScreenState
         background: Stack(
           fit: StackFit.expand,
           children: [
+            // ✅ NOVÉ: Debug log + obrázok alebo gradient
+            Builder(
+              builder: (context) {
+                // ✅ PRIDANÉ DEBUG LOGY
+                print('🔍 _buildSliverAppBar - item name: ${widget.item.name}');
+                print(
+                    '🔍 _buildSliverAppBar - item type: ${widget.item.itemType}');
+                print(
+                    '🔍 _buildSliverAppBar - isArtifact: ${widget.item.isArtifact}');
+                print(
+                    '🔍 _buildSliverAppBar - properties: ${widget.item.properties}');
+
+                final computedUrl = widget.item.computedImageUrl;
+                print('🔍 _buildSliverAppBar - computedImageUrl: $computedUrl');
+
+                if (computedUrl != null) {
+                  print('✅ Using NetworkImageWidget with URL: $computedUrl');
+                  return NetworkImageWidget(
+                    imageUrl: computedUrl,
+                    fit: BoxFit.cover,
+                    placeholder: Container(
+                      decoration: BoxDecoration(
+                        gradient: _getItemGradient(),
+                      ),
+                      child: _buildDefaultHeader(),
+                    ),
+                    errorWidget: Container(
+                      decoration: BoxDecoration(
+                        gradient: _getItemGradient(),
+                      ),
+                      child: _buildDefaultHeader(),
+                    ),
+                  );
+                } else {
+                  print('❌ No computedImageUrl - using gradient');
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: _getItemGradient(),
+                    ),
+                    child: _buildDefaultHeader(),
+                  );
+                }
+              },
+            ),
+
+            // ✅ Tmavý overlay pre lepšiu čitateľnosť textu
             Container(
               decoration: BoxDecoration(
-                gradient: _getItemGradient(),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.3),
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.7),
+                  ],
+                ),
               ),
             ),
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(60),
-                      border: Border.all(color: Colors.white, width: 3),
-                    ),
-                    child: Icon(
-                      _getItemIcon(),
-                      size: 64,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      widget.item.isArtifact ? 'ARTIFACT' : 'GEAR',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+
+            // ✅ Rarity badge v pravom hornom rohu
             Positioned(
               top: 100,
               right: 20,
@@ -195,8 +214,56 @@ class _EnhancedInventoryDetailScreenState
                 size: RarityBadgeSize.large,
               ),
             ),
+
+            // ✅ Type badge v dolnej časti
+            Positioned(
+              bottom: 20,
+              left: 20,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                ),
+                child: Text(
+                  widget.item.isArtifact ? 'ARTIFACT' : 'GEAR',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+// ✅ NOVÁ METÓDA: Default header content pre fallback
+  Widget _buildDefaultHeader() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(60),
+              border: Border.all(color: Colors.white, width: 3),
+            ),
+            child: Icon(
+              _getItemIcon(),
+              size: 64,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }

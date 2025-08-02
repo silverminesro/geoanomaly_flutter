@@ -152,6 +152,55 @@ class ArtifactItem extends Equatable {
     return properties;
   }
 
+  // ✅ FIXED: Factory method from inventory item - only use existing constructor parameters
+  factory ArtifactItem.fromInventoryItem(Map<String, dynamic> json) {
+    final properties = json['properties'] as Map<String, dynamic>? ?? {};
+
+    // Store power, value and description in properties if they exist
+    final enhancedProperties = Map<String, dynamic>.from(properties);
+
+    // Add these values to properties if they don't already exist
+    if (!enhancedProperties.containsKey('power') &&
+        properties['power'] != null) {
+      enhancedProperties['power'] = properties['power'];
+    }
+    if (!enhancedProperties.containsKey('value') &&
+        properties['value'] != null) {
+      enhancedProperties['value'] = properties['value'];
+    }
+    if (!enhancedProperties.containsKey('description') &&
+        properties['description'] != null) {
+      enhancedProperties['description'] = properties['description'];
+    }
+
+    return ArtifactItem(
+      id: json['item_id'] as String? ?? json['id'] as String? ?? '',
+      name: properties['name'] as String? ??
+          json['name'] as String? ??
+          'Unknown Artifact',
+      type: properties['type'] as String? ?? 'unknown',
+      rarity: properties['rarity'] as String? ?? 'common',
+      exclusiveToBiome: properties['exclusive_to_biome'] as bool? ?? false,
+      isActive: properties['is_active'] as bool? ?? true,
+      properties: enhancedProperties,
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
+          DateTime.now(),
+
+      // Optional parameters
+      zoneId: properties['zone_id'] as String?,
+      biome: properties['biome'] as String?,
+      locationLatitude: properties['location_latitude'] as double?,
+      locationLongitude: properties['location_longitude'] as double?,
+      locationTimestamp: properties['location_timestamp'] != null
+          ? DateTime.tryParse(properties['location_timestamp'].toString())
+          : null,
+      deletedAt: null,
+    );
+  }
+
+  // ✅ FIXED: Standard fromJson factory
   factory ArtifactItem.fromJson(Map<String, dynamic> json) {
     try {
       return _$ArtifactItemFromJson(json);
@@ -401,6 +450,7 @@ class ArtifactItem extends Equatable {
     }
   }
 
+  // ✅ Property getters that read from properties map
   String? get description => getProperty<String>('description');
   double? get value => getProperty<double>('value');
   int? get power => getProperty<int>('power');

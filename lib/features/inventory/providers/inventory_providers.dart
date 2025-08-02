@@ -5,6 +5,8 @@ import '../models/inventory_item_model.dart';
 import '../models/artifact_item_model.dart';
 import '../models/gear_item_model.dart';
 import '../models/inventory_summary_model.dart';
+import '../services/media_service.dart';
+import '../../../core/network/api_client.dart';
 
 // Service providers
 final inventoryServiceProvider = Provider<InventoryService>((ref) {
@@ -13,6 +15,11 @@ final inventoryServiceProvider = Provider<InventoryService>((ref) {
 
 final inventoryCacheServiceProvider = Provider<InventoryCacheService>((ref) {
   return InventoryCacheService();
+});
+
+final mediaServiceProvider = Provider<MediaService>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return MediaService(apiClient);
 });
 
 // State class for inventory
@@ -306,10 +313,10 @@ class InventoryNotifier extends StateNotifier<InventoryState> {
       // Try to load from network
       if (!state.isOfflineMode) {
         if (inventoryItem.isArtifact) {
-          detailedItem =
-              await _inventoryService.getArtifactDetails(inventoryItem.itemId);
+          detailedItem = detailedItem =
+              await _inventoryService.getArtifactDetails(inventoryItem.id);
           await _cacheService.cacheArtifactDetails(
-              inventoryItem.itemId, detailedItem as ArtifactItem);
+              inventoryItem.id, detailedItem as ArtifactItem);
         } else {
           detailedItem =
               await _inventoryService.getGearDetails(inventoryItem.itemId);

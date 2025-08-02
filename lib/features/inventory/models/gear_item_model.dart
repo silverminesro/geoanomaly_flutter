@@ -148,6 +148,78 @@ class GearItem extends Equatable {
     return properties;
   }
 
+  // ✅ FIXED: Factory method from inventory item - only use existing constructor parameters
+  factory GearItem.fromInventoryItem(Map<String, dynamic> json) {
+    final properties = json['properties'] as Map<String, dynamic>? ?? {};
+
+    // Store gear-specific values in properties if they exist
+    final enhancedProperties = Map<String, dynamic>.from(properties);
+
+    // Add gear stats to properties if they don't already exist
+    if (!enhancedProperties.containsKey('attack') &&
+        properties['attack'] != null) {
+      enhancedProperties['attack'] = properties['attack'];
+    }
+    if (!enhancedProperties.containsKey('defense') &&
+        properties['defense'] != null) {
+      enhancedProperties['defense'] = properties['defense'];
+    }
+    if (!enhancedProperties.containsKey('durability') &&
+        properties['durability'] != null) {
+      enhancedProperties['durability'] = properties['durability'];
+    }
+    if (!enhancedProperties.containsKey('max_durability') &&
+        properties['max_durability'] != null) {
+      enhancedProperties['max_durability'] = properties['max_durability'];
+    }
+    if (!enhancedProperties.containsKey('weight') &&
+        properties['weight'] != null) {
+      enhancedProperties['weight'] = properties['weight'];
+    }
+    if (!enhancedProperties.containsKey('value') &&
+        properties['value'] != null) {
+      enhancedProperties['value'] = properties['value'];
+    }
+    if (!enhancedProperties.containsKey('description') &&
+        properties['description'] != null) {
+      enhancedProperties['description'] = properties['description'];
+    }
+    if (!enhancedProperties.containsKey('slot') && properties['slot'] != null) {
+      enhancedProperties['slot'] = properties['slot'];
+    }
+    if (!enhancedProperties.containsKey('equipped') &&
+        properties['equipped'] != null) {
+      enhancedProperties['equipped'] = properties['equipped'];
+    }
+
+    return GearItem(
+      id: json['item_id'] as String? ?? json['id'] as String? ?? '',
+      name: properties['name'] as String? ??
+          json['name'] as String? ??
+          'Unknown Gear',
+      type: properties['type'] as String? ?? 'unknown',
+      level: properties['level'] as int? ?? 1,
+      exclusiveToBiome: properties['exclusive_to_biome'] as bool? ?? false,
+      isActive: properties['is_active'] as bool? ?? true,
+      properties: enhancedProperties,
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
+          DateTime.now(),
+
+      // Optional parameters
+      zoneId: properties['zone_id'] as String?,
+      biome: properties['biome'] as String?,
+      locationLatitude: properties['location_latitude'] as double?,
+      locationLongitude: properties['location_longitude'] as double?,
+      locationTimestamp: properties['location_timestamp'] != null
+          ? DateTime.tryParse(properties['location_timestamp'].toString())
+          : null,
+      deletedAt: null,
+    );
+  }
+
+  // ✅ FIXED: Standard fromJson factory
   factory GearItem.fromJson(Map<String, dynamic> json) {
     try {
       return _$GearItemFromJson(json);
@@ -345,13 +417,16 @@ class GearItem extends Equatable {
     }
   }
 
-  // ✅ ENHANCED: Stats helpers (from properties) with type safety
+  // ✅ FIXED: Stats helpers (from properties) with type safety
   int get attack => getProperty<int>('attack') ?? 0;
   int get defense => getProperty<int>('defense') ?? 0;
   int get durability => getProperty<int>('durability') ?? 100;
   int get maxDurability => getProperty<int>('max_durability') ?? 100;
   double? get weight => getProperty<double>('weight');
   double? get value => getProperty<double>('value');
+  String? get description => getProperty<String>('description');
+  String? get slot => getProperty<String>('slot');
+  bool get equipped => getProperty<bool>('equipped') ?? false;
 
   // Durability helpers
   double get durabilityPercentage {
@@ -432,8 +507,6 @@ class GearItem extends Equatable {
       return null;
     }
   }
-
-  String? get description => getProperty<String>('description');
 
   // Status helpers
   bool get isDeleted => deletedAt != null;
